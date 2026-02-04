@@ -1,0 +1,117 @@
+name: Android Build
+
+# Cache scoping note: GitHub Actions caches are branch-scoped. Feature branches can only
+# access caches from the same branch or the default branch (main/master). Using separate
+# restore/save steps ensures caches are saved even if the build fails.
+
+on:
+  pull_request:
+    branches: [ main, master ]
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [ main, master ]
+
+permissions:
+  contents: read   # Read repository contents
+  checks: write    # Post build status checks
+
+jobs:
+  build:
+    name: Build Android App
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '21'
+
+    - name: Restore Gradle cache
+      id: gradle-cache-restore
+      uses: actions/cache/restore@v4
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+          .gradle
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+
+    - name: Restore build cache
+      id: build-cache-restore
+      uses: actions/cache/restore@v4
+      with:
+        path: |
+          **/build
+        key: ${{ runner.os }}-build-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-build-
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
+    - name: Create local.properties for keystore generation
+      run: |
+        cat > local.properties << 'EOF'
+        storeFile=app/debug.keystore
+        keyAlias=androiddebugkey
+        keyPassword=android
+        storePassword=android
+        EOF
+
+    - name: Build with Gradle
+      run: ./gradlew build --stacktrace --build-cache
+      working-directory: apps/android
+
+    - name: Verify keystore was created
+      run: |
+        if [ -f apps/android/app/debug.keystore ]; then
+          echo "✓ Keystore created successfully"
+          ls -lh apps/android/app/debug.keystore
+          keytool -list -v -keystore apps/android/app/debug.keystore -storepass android | head -20
+        else
+          echo "✗ Keystore not found!"
+          exit 1
+        fi
+
+    - name: Run Lint
+      run: ./gradlew lint
+      working-directory: apps/android
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-debug
+        path: apps/android/app/build/outputs/apk/debug/app-debug.apk
+        retention-days: 7
+
+    - name: Upload Lint Report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: lint-report
+        path: apps/android/app/build/reports/lint-results-debug.html
+        retention-days: 7
+
+    - name: Save Gradle cache
+      if: always()
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+          .gradle
+        key: ${{ steps.gradle-cache-restore.outputs.cache-primary-key }}
+
+    - name: Save build cache
+      if: always()
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          **/build
+        key: ${{ steps.build-cache-restore.outputs.cache-primary-key }}
