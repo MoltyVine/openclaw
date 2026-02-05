@@ -33,6 +33,15 @@ jobs:
     - name: Set up Android SDK
       uses: android-actions/setup-android@v3
 
+    - name: Install Android SDK components
+      run: |
+        # Ensure the SDK platform and build tools are installed
+        export ANDROID_HOME=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}
+        echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+        
+        # List available SDK versions
+        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --list | grep "Android SDK" || echo "SDK listing failed"
+
     - name: Restore Gradle cache
       id: gradle-cache-restore
       uses: actions/cache/restore@v4
@@ -61,12 +70,7 @@ jobs:
 
     - name: Create local.properties for keystore generation
       run: |
-        # Try to find Android SDK location
-        SDK_DIR="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
-        echo "Using SDK directory: $SDK_DIR"
-        
-        cat > local.properties << EOF
-        sdk.dir=$SDK_DIR
+        cat > local.properties << 'EOF'
         storeFile=app/debug.keystore
         keyAlias=androiddebugkey
         keyPassword=android
@@ -77,7 +81,10 @@ jobs:
       working-directory: apps/android
 
     - name: Build with Gradle
-      run: ./gradlew build --stacktrace --build-cache
+      run: |
+        ./gradlew build --stacktrace --build-cache -d 2>&1 | tee build-output.log || true
+        echo "=== Build finished ==="
+        tail -200 build-output.log
       working-directory: apps/android
 
     - name: Verify keystore was created
