@@ -87,14 +87,15 @@ jobs:
         tail -200 build-output.log
       working-directory: apps/android
 
-    - name: Verify keystore was created
+    - name: Verify APK was created
       run: |
-        if [ -f apps/android/app/debug.keystore ]; then
-          echo "✓ Keystore created successfully"
-          ls -lh apps/android/app/debug.keystore
-          keytool -list -v -keystore apps/android/app/debug.keystore -storepass android | head -20
+        APK_PATH="apps/android/app/build/outputs/apk/debug/openclaw-*.apk"
+        if ls $APK_PATH 1> /dev/null 2>&1; then
+          echo "✓ APK created successfully"
+          ls -lh $APK_PATH
         else
-          echo "✗ Keystore not found!"
+          echo "✗ APK not found at $APK_PATH"
+          find apps/android/app/build/outputs -name "*.apk" -ls || echo "No APK files found"
           exit 1
         fi
 
