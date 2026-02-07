@@ -1,1 +1,137 @@
+name: Android Build
 
+# Cache scoping note: GitHub Actions caches are branch-scoped. Feature branches can only
+# access caches from the same branch or the default branch (main/master). Using separate
+# restore/save steps ensures caches are saved even if the build fails.
+
+on:
+  pull_request:
+    branches: [ main, master ]
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [ main, master ]
+
+permissions:
+  contents: read   # Read repository contents
+  checks: write    # Post build status checks
+
+jobs:
+  build:
+    name: Build Android App
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '21'
+
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Install Android SDK components
+      run: |
+        # Ensure the SDK platform and build tools are installed
+        export ANDROID_HOME=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}
+        echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+        
+        # List available SDK versions
+        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --list | grep "Android SDK" || echo "SDK listing failed"
+
+    - name: Restore Gradle cache
+      id: gradle-cache-restore
+      uses: actions/cache/restore@v4
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+          .gradle
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+
+    - name: Restore build cache
+      id: build-cache-restore
+      uses: actions/cache/restore@v4
+      with:
+        path: |
+          **/build
+        key: ${{ runner.os }}-build-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-build-
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+      working-directory: apps/android
+
+    - name: Create local.properties for keystore generation
+      run: |
+        cat > local.properties << 'EOF'
+        storeFile=app/debug.keystore
+        keyAlias=androiddebugkey
+        keyPassword=android
+        storePassword=android
+        EOF
+        
+        cat local.properties
+      working-directory: apps/android
+
+    - name: Build with Gradle
+      run: |
+        ./gradlew build --stacktrace --build-cache -d 2>&1 | tee build-output.log || true
+        echo "=== Build finished ==="
+        tail -200 build-output.log
+      working-directory: apps/android
+
+    - name: Verify APK was created
+      run: |
+        APK_PATH="apps/android/app/build/outputs/apk/debug/openclaw-*.apk"
+        if ls $APK_PATH 1> /dev/null 2>&1; then
+          echo "✓ APK created successfully"
+          ls -lh $APK_PATH
+        else
+          echo "✗ APK not found at $APK_PATH"
+          find apps/android/app/build/outputs -name "*.apk" -ls || echo "No APK files found"
+          exit 1
+        fi
+
+    - name: Run Lint
+      run: ./gradlew lint
+      working-directory: apps/android
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-debug
+        path: apps/android/app/build/outputs/apk/debug/*.apk
+        retention-days: 7
+
+    - name: Upload Lint Report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: lint-report
+        path: apps/android/app/build/reports/lint-results-debug.html
+        retention-days: 7
+
+    - name: Save Gradle cache
+      if: always()
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+          .gradle
+        key: ${{ steps.gradle-cache-restore.outputs.cache-primary-key }}
+
+    - name: Save build cache
+      if: always()
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          **/build
+        key: ${{ steps.build-cache-restore.outputs.cache-primary-key }}
