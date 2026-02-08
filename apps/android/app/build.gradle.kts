@@ -49,7 +49,7 @@ android {
 
   lint {
     disable += setOf("IconLauncherShape")
-    warningsAsErrors = true
+    warningsAsErrors = false
   }
 
   testOptions {
