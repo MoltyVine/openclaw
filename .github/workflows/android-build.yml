@@ -29,6 +29,7 @@ jobs:
       with:
         distribution: 'temurin'
         java-version: '21'
+        cache: 'gradle'
 
     - name: Set up Android SDK
       uses: android-actions/setup-android@v3
@@ -82,19 +83,36 @@ jobs:
 
     - name: Build with Gradle
       run: |
-        ./gradlew build --stacktrace --build-cache -d 2>&1 | tee build-output.log || true
+        ./gradlew build --stacktrace --build-cache --info 2>&1 | tee build-output.log || true
         echo "=== Build finished ==="
         tail -200 build-output.log
       working-directory: apps/android
 
+    # - name: Verify APK was created
+    #   run: |
+    #     APK_PATH="apps/android/app/build/outputs/apk/debug/openclaw-*.apk"
+    #     if ls $APK_PATH 1> /dev/null 2>&1; then
+    #       echo "✓ APK created successfully"
+    #       ls -lh $APK_PATH
+    #     else
+    #       echo "✗ APK not found at $APK_PATH"
+    #       find apps/android/app/build/outputs -name "*.apk" -ls || echo "No APK files found"
+    #       exit 1
+    #     fi
+
     - name: Verify APK was created
       run: |
-        APK_PATH="apps/android/app/build/outputs/apk/debug/openclaw-*.apk"
+        # Use ** to look through subdirectories
+        APK_PATH="apps/android/app/build/outputs/apk/**/debug/openclaw-*.apk"
+        
+        # In bash, we need to enable globstar for ** to work
+        shopt -s globstar
+        
         if ls $APK_PATH 1> /dev/null 2>&1; then
           echo "✓ APK created successfully"
           ls -lh $APK_PATH
         else
-          echo "✗ APK not found at $APK_PATH"
+          echo "✗ APK not found"
           find apps/android/app/build/outputs -name "*.apk" -ls || echo "No APK files found"
           exit 1
         fi
@@ -107,7 +125,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: app-debug
-        path: apps/android/app/build/outputs/apk/debug/*.apk
+        path: apps/android/app/build/outputs/apk/**/debug/*.apk
         retention-days: 7
 
     - name: Upload Lint Report
