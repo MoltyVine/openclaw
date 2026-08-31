@@ -83,7 +83,10 @@ jobs:
 
     - name: Build with Gradle
       run: |
-        ./gradlew build --stacktrace --build-cache --info 2>&1 | tee build-output.log || true
+        # Debug-only: the bare `build` lifecycle task also assembles release
+        # variants, which require signing config and -PopenclawBuildCommit /
+        # -PopenclawBuildTimestamp that this smoke workflow never provides.
+        ./gradlew assemblePlayDebug assembleThirdPartyDebug --stacktrace --build-cache --info 2>&1 | tee build-output.log || true
         echo "=== Build finished ==="
         tail -200 build-output.log
       working-directory: apps/android
@@ -127,7 +130,9 @@ jobs:
         retention-days: 7
 
     - name: Run Lint
-      run: ./gradlew lint
+      # Scoped to the debug variants for the same reason as the build step above:
+      # the bare `lint` task also lints release variants and hits the same gate.
+      run: ./gradlew lintPlayDebug lintThirdPartyDebug
       working-directory: apps/android
 
     - name: Upload Lint Report
@@ -135,7 +140,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: lint-report
-        path: apps/android/app/build/reports/lint-results-debug.html
+        path: apps/android/app/build/reports/lint-results-*Debug.html
         retention-days: 7
 
     - name: Save Gradle cache
