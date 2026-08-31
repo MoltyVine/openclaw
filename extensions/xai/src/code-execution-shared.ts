@@ -1,55 +1,36 @@
-import { postTrustedWebToolsJson } from "openclaw/plugin-sdk/provider-web-search";
-import { normalizeXaiModelId } from "../model-id.js";
-import { extractXaiWebSearchContent, type XaiWebSearchResponse } from "./web-search-shared.js";
+// Xai plugin module implements code execution shared behavior.
+import { XAI_DEFAULT_MODEL_ID } from "../model-definitions.js";
+import {
+  requestXaiResponsesTool,
+  requireXaiResponseTextAndCitations,
+  XAI_RESPONSES_ENDPOINT,
+} from "./responses-tool-shared.js";
+import {
+  resolveNormalizedXaiToolModel,
+  resolvePositiveIntegerToolConfig,
+} from "./tool-config-shared.js";
 
-export const XAI_CODE_EXECUTION_ENDPOINT = "https://api.x.ai/v1/responses";
-export const XAI_DEFAULT_CODE_EXECUTION_MODEL = "grok-4-1-fast";
+const XAI_CODE_EXECUTION_ENDPOINT = XAI_RESPONSES_ENDPOINT;
+const XAI_DEFAULT_CODE_EXECUTION_MODEL = XAI_DEFAULT_MODEL_ID;
 
-export type XaiCodeExecutionConfig = {
-  apiKey?: unknown;
-  model?: unknown;
-  maxTurns?: unknown;
-};
-
-export type XaiCodeExecutionResponse = XaiWebSearchResponse & {
-  output?: Array<{
-    type?: string;
-  }>;
-};
-
-export type XaiCodeExecutionResult = {
+type XaiCodeExecutionResult = {
   content: string;
   citations: string[];
   usedCodeExecution: boolean;
   outputTypes: string[];
 };
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-export function resolveXaiCodeExecutionConfig(
-  config?: Record<string, unknown>,
-): XaiCodeExecutionConfig {
-  return isRecord(config) ? (config as XaiCodeExecutionConfig) : {};
-}
-
 export function resolveXaiCodeExecutionModel(config?: Record<string, unknown>): string {
-  const resolved = resolveXaiCodeExecutionConfig(config);
-  return typeof resolved.model === "string" && resolved.model.trim()
-    ? normalizeXaiModelId(resolved.model.trim())
-    : XAI_DEFAULT_CODE_EXECUTION_MODEL;
+  return resolveNormalizedXaiToolModel({
+    config,
+    defaultModel: XAI_DEFAULT_CODE_EXECUTION_MODEL,
+  });
 }
 
 export function resolveXaiCodeExecutionMaxTurns(
   config?: Record<string, unknown>,
 ): number | undefined {
-  const raw = resolveXaiCodeExecutionConfig(config).maxTurns;
-  if (typeof raw !== "number" || !Number.isFinite(raw)) {
-    return undefined;
-  }
-  const normalized = Math.trunc(raw);
-  return normalized > 0 ? normalized : undefined;
+  return resolvePositiveIntegerToolConfig(config, "maxTurns");
 }
 
 export function buildXaiCodeExecutionPayload(params: {
@@ -80,22 +61,20 @@ export async function requestXaiCodeExecution(params: {
   maxTurns?: number;
   task: string;
 }): Promise<XaiCodeExecutionResult> {
-  return await postTrustedWebToolsJson(
+  return await requestXaiResponsesTool(
     {
-      url: XAI_CODE_EXECUTION_ENDPOINT,
-      timeoutSeconds: params.timeoutSeconds,
-      apiKey: params.apiKey,
-      body: {
-        model: params.model,
-        input: [{ role: "user", content: params.task }],
-        tools: [{ type: "code_interpreter" }],
-        ...(params.maxTurns ? { max_turns: params.maxTurns } : {}),
-      },
-      errorLabel: "xAI",
+      ...params,
+      endpoint: XAI_CODE_EXECUTION_ENDPOINT,
+      inputText: params.task,
+      tools: [{ type: "code_interpreter" }],
+      reasoningEffort: params.model === XAI_DEFAULT_CODE_EXECUTION_MODEL ? "low" : undefined,
+      errorLabel: "xAI code execution failed",
     },
-    async (response) => {
-      const data = (await response.json()) as XaiCodeExecutionResponse;
-      const { text, annotationCitations } = extractXaiWebSearchContent(data);
+    (data) => {
+      const { content, citations } = requireXaiResponseTextAndCitations(
+        data,
+        "xAI code execution failed",
+      );
       const outputTypes = Array.isArray(data.output)
         ? [
             ...new Set(
@@ -105,12 +84,8 @@ export async function requestXaiCodeExecution(params: {
             ),
           ]
         : [];
-      const citations =
-        Array.isArray(data.citations) && data.citations.length > 0
-          ? data.citations
-          : annotationCitations;
       return {
-        content: text ?? "No response",
+        content,
         citations,
         usedCodeExecution: outputTypes.includes("code_interpreter_call"),
         outputTypes,
@@ -118,12 +93,3 @@ export async function requestXaiCodeExecution(params: {
     },
   );
 }
-
-export const __testing = {
-  buildXaiCodeExecutionPayload,
-  requestXaiCodeExecution,
-  resolveXaiCodeExecutionConfig,
-  resolveXaiCodeExecutionMaxTurns,
-  resolveXaiCodeExecutionModel,
-  XAI_DEFAULT_CODE_EXECUTION_MODEL,
-} as const;

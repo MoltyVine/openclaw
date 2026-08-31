@@ -1,12 +1,22 @@
 # Generated Docs Artifacts
 
-These baseline artifacts are generated from the repo-owned OpenClaw config schema and bundled channel/plugin metadata.
+Generated contract files are tracked drift-detection artifacts. Full pretty
+snapshots remain local inspection artifacts.
 
-- Do not edit `config-baseline.json` by hand.
-- Do not edit `config-baseline.jsonl` by hand.
-- Do not edit `plugin-sdk-api-baseline.json` by hand.
-- Do not edit `plugin-sdk-api-baseline.jsonl` by hand.
-- Regenerate config baseline artifacts with `pnpm config:docs:gen`.
-- Validate config baseline artifacts in CI or locally with `pnpm config:docs:check`.
-- Regenerate Plugin SDK API baseline artifacts with `pnpm plugin-sdk:api:gen`.
-- Validate Plugin SDK API baseline artifacts in CI or locally with `pnpm plugin-sdk:api:check`.
+**Tracked (committed to git):**
+
+- `config-baseline.sha256` — hashes of config baseline JSON artifacts.
+- `config-baseline.counts.json` — maximum entry counts for each config baseline kind.
+- `sqlite-session-transcript-schema-baseline.sha256` — hash of the sessions/transcripts SQLite schema baseline.
+
+**Local only (gitignored):**
+
+- `config-baseline.json`, `config-baseline.core.json`, `config-baseline.channel.json`, `config-baseline.plugin.json`
+- `.artifacts/sqlite-session-transcript-schema-baseline.sql`
+
+Do not edit any of these files by hand.
+
+- Regenerate config baseline: `pnpm config:docs:gen`
+- Validate config baseline: `pnpm config:docs:check`
+- Regenerate SQLite sessions/transcripts schema baseline: `pnpm sqlite:sessions-schema:gen`
+- Validate SQLite sessions/transcripts schema baseline: `pnpm sqlite:sessions-schema:check`

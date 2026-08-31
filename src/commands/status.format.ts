@@ -1,11 +1,31 @@
+// Formatting helpers for status tokens, durations, prompt-cache stats, and daemon runtime snippets.
+// These helpers are shared by report rows and command output surfaces.
+
+import { normalizeLowercaseStringOrEmpty } from "@openclaw/normalization-core/string-coerce";
+import { sanitizeTerminalText } from "../../packages/terminal-core/src/safe-text.js";
+import { formatCliCommand } from "../cli/command-format.js";
+import type { BestEffortConfigSnapshot } from "../config/io.js";
+import { formatConfigIssueLines } from "../config/issue-format.js";
+import type { GatewayServiceRuntime } from "../daemon/service-runtime.js";
+import { getSystemdCgroupHygieneSummary } from "../daemon/service-runtime.js";
 import { formatDurationPrecise } from "../infra/format-time/format-duration.ts";
 import { formatRuntimeStatusWithDetails } from "../infra/runtime-status.ts";
-import type { SessionStatus } from "./status.types.js";
+import type { SessionStatus } from "../status/types.js";
+import { formatTokenCount } from "../utils/token-format.js";
 export { shortenText } from "./text-format.js";
 
-export const formatKTokens = (value: number) =>
-  `${(value / 1000).toFixed(value >= 10_000 ? 0 : 1)}k`;
+export const formatKTokens = formatTokenCount;
 
+/** Formats the actionable entries shown under status config diagnostic headings. */
+export const formatStatusConfigDiagnosticEntries = (
+  diagnostics: NonNullable<BestEffortConfigSnapshot["configDiagnostics"]>,
+): string[] => [
+  `- Config file is invalid: ${sanitizeTerminalText(diagnostics.path)}`,
+  ...formatConfigIssueLines(diagnostics.issues, "-", { normalizeRoot: true }),
+  `- Fix: ${formatCliCommand("openclaw doctor --fix")}`,
+];
+
+/** Formats a duration or returns `unknown` for missing/non-finite values. */
 export const formatDuration = (ms: number | null | undefined) => {
   if (ms == null || !Number.isFinite(ms)) {
     return "unknown";
@@ -13,6 +33,7 @@ export const formatDuration = (ms: number | null | undefined) => {
   return formatDurationPrecise(ms, { decimals: 1 });
 };
 
+/** Formats session token usage and prompt-cache hit rate for the sessions table. */
 export const formatTokensCompact = (
   sess: Pick<
     SessionStatus,
@@ -21,11 +42,8 @@ export const formatTokensCompact = (
 ) => {
   const used = sess.totalTokens;
   const ctx = sess.contextTokens;
-  const cacheRead = sess.cacheRead;
-  const cacheWrite = sess.cacheWrite;
-  const inputTokens = sess.inputTokens;
 
-  let result = "";
+  let result;
   if (used == null) {
     result = ctx ? `unknown/${formatKTokens(ctx)} (?%)` : "unknown used";
   } else if (!ctx) {
@@ -35,48 +53,88 @@ export const formatTokensCompact = (
     result = `${formatKTokens(used)}/${formatKTokens(ctx)} (${pctLabel})`;
   }
 
-  // Add cache hit rate if there are cached reads
-  if (typeof cacheRead === "number" && cacheRead > 0) {
-    const cacheWriteTokens =
-      typeof cacheWrite === "number" && Number.isFinite(cacheWrite) && cacheWrite >= 0
-        ? cacheWrite
-        : 0;
-    const promptTokensFromParts =
-      typeof inputTokens === "number" && Number.isFinite(inputTokens) && inputTokens >= 0
-        ? inputTokens + cacheRead + cacheWriteTokens
-        : undefined;
-    // Legacy entries can carry an undersized totalTokens value. Keep the cache
-    // denominator aligned with the prompt-side token fields when available, and
-    // never let the fallback denominator drop below the known cached prompt
-    // tokens.
-    const total =
-      promptTokensFromParts ??
-      (typeof used === "number" && Number.isFinite(used) && used > 0
-        ? Math.max(used, cacheRead + cacheWriteTokens)
-        : cacheRead + cacheWriteTokens);
-    const hitRate = Math.round((cacheRead / total) * 100);
-    result += ` · 🗄️ ${hitRate}% cached`;
+  const cacheStats = resolvePromptCacheStats(sess);
+  if (cacheStats && cacheStats.cacheRead > 0) {
+    result += ` · 🗄️ ${cacheStats.hitRate}% cached`;
   }
 
   return result;
 };
 
-export const formatDaemonRuntimeShort = (runtime?: {
-  status?: string;
-  pid?: number;
-  state?: string;
-  detail?: string;
-  missingUnit?: boolean;
-}) => {
+/** Formats prompt-cache details for verbose sessions table output. */
+export const formatPromptCacheCompact = (
+  sess: Pick<SessionStatus, "inputTokens" | "totalTokens" | "cacheRead" | "cacheWrite">,
+) => {
+  const cacheStats = resolvePromptCacheStats(sess);
+  if (!cacheStats) {
+    return "";
+  }
+  const parts = [`${cacheStats.hitRate}% hit`];
+  if (cacheStats.cacheRead > 0) {
+    parts.push(`read ${formatKTokens(cacheStats.cacheRead)}`);
+  }
+  if (cacheStats.cacheWrite > 0) {
+    parts.push(`write ${formatKTokens(cacheStats.cacheWrite)}`);
+  }
+  return parts.join(" · ");
+};
+
+function resolvePromptCacheStats(
+  sess: Pick<SessionStatus, "inputTokens" | "totalTokens" | "cacheRead" | "cacheWrite">,
+) {
+  const cacheRead =
+    typeof sess.cacheRead === "number" && Number.isFinite(sess.cacheRead) && sess.cacheRead >= 0
+      ? sess.cacheRead
+      : 0;
+  const cacheWrite =
+    typeof sess.cacheWrite === "number" && Number.isFinite(sess.cacheWrite) && sess.cacheWrite >= 0
+      ? sess.cacheWrite
+      : 0;
+  if (cacheRead <= 0 && cacheWrite <= 0) {
+    return null;
+  }
+  const inputTokens =
+    typeof sess.inputTokens === "number" &&
+    Number.isFinite(sess.inputTokens) &&
+    sess.inputTokens >= 0
+      ? sess.inputTokens
+      : undefined;
+  const promptTokensFromParts =
+    inputTokens != null ? inputTokens + cacheRead + cacheWrite : undefined;
+  const used = sess.totalTokens;
+  // Legacy entries can carry an undersized totalTokens value. Keep the cache
+  // denominator aligned with the prompt-side token fields when available, and
+  // never let the fallback denominator drop below the known cached prompt
+  // tokens.
+  const total =
+    promptTokensFromParts ??
+    (typeof used === "number" && Number.isFinite(used) && used > 0
+      ? Math.max(used, cacheRead + cacheWrite)
+      : cacheRead + cacheWrite);
+  return {
+    cacheRead,
+    cacheWrite,
+    hitRate: total > 0 ? Math.round((cacheRead / total) * 100) : 0,
+  };
+}
+
+/** Formats daemon runtime status plus launchd/systemd details into one compact string. */
+export const formatDaemonRuntimeShort = (runtime?: GatewayServiceRuntime) => {
   if (!runtime) {
     return null;
   }
   const details: string[] = [];
-  const detail = runtime.detail?.replace(/\s+/g, " ").trim() || "";
+  const detail = runtime.inspectionFailure ? "" : runtime.detail?.replace(/\s+/g, " ").trim() || "";
   const noisyLaunchctlDetail =
-    runtime.missingUnit === true && detail.toLowerCase().includes("could not find service");
+    runtime.missingUnit === true &&
+    normalizeLowercaseStringOrEmpty(detail).includes("could not find service");
+  // launchctl reports missing units noisily; installed=false already carries that signal.
   if (detail && !noisyLaunchctlDetail) {
     details.push(detail);
+  }
+  const cgroupSummary = getSystemdCgroupHygieneSummary(runtime.systemd);
+  if (cgroupSummary) {
+    details.push(cgroupSummary);
   }
   return formatRuntimeStatusWithDetails({
     status: runtime.status,

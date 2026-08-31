@@ -1,11 +1,12 @@
+/**
+ * Browser test-support re-exports from shared plugin-sdk test fixtures.
+ */
 export {
   createCliRuntimeCapture,
-  isLiveTestEnabled,
-  type CliMockOutputRuntime,
+  expectGeneratedTokenPersistedToGatewayAuth,
   type CliRuntimeCapture,
-} from "openclaw/plugin-sdk/testing";
-export { type OpenClawConfig } from "openclaw/plugin-sdk/browser-support";
-export { expectGeneratedTokenPersistedToGatewayAuth } from "../../src/test-utils/auth-token-assertions.js";
-export { withEnv, withEnvAsync } from "../../test/helpers/plugins/env.ts";
-export { withFetchPreconnect, type FetchMock } from "../../test/helpers/plugins/fetch-mock.ts";
-export { createTempHomeEnv, type TempHomeEnv } from "../../test/helpers/plugins/temp-home.ts";
+} from "openclaw/plugin-sdk/test-fixtures";
+export { createTempHomeEnv, useAutoCleanupTempDirTracker } from "openclaw/plugin-sdk/test-env";
+export type { TempHomeEnv } from "openclaw/plugin-sdk/test-env";
+export { isLiveTestEnabled } from "openclaw/plugin-sdk/test-live";
+export type { OpenClawConfig } from "openclaw/plugin-sdk/config-contracts";

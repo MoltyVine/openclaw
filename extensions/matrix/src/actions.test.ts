@@ -1,3 +1,4 @@
+// Matrix tests cover actions plugin behavior.
 import { beforeEach, describe, expect, it } from "vitest";
 import type { PluginRuntime } from "../runtime-api.js";
 import { matrixMessageActions } from "./actions.js";
@@ -8,7 +9,7 @@ const profileAction = "set-profile" as const;
 
 const runtimeStub = {
   config: {
-    loadConfig: () => ({}),
+    current: () => ({}),
   },
   media: {
     loadWebMedia: async () => {
@@ -59,7 +60,7 @@ describe("matrixMessageActions", () => {
     expect(describeMessageTool).toBeTypeOf("function");
     expect(supportsAction).toBeTypeOf("function");
 
-    const discovery = describeMessageTool!({
+    const discovery = describeMessageTool({
       cfg: createConfiguredMatrixConfig(),
     } as never);
     if (!discovery) {
@@ -68,6 +69,7 @@ describe("matrixMessageActions", () => {
     const actions = discovery.actions;
     expect(actions).toContain("poll");
     expect(actions).toContain("poll-vote");
+    expect(discovery.capabilities).toEqual(["presentation"]);
     expect(supportsAction({ action: "poll" } as never)).toBe(false);
     expect(supportsAction({ action: "poll-vote" } as never)).toBe(true);
   });
@@ -76,8 +78,9 @@ describe("matrixMessageActions", () => {
     const describeMessageTool = matrixMessageActions.describeMessageTool;
     const supportsAction = matrixMessageActions.supportsAction ?? (() => false);
 
-    const discovery = describeMessageTool!({
+    const discovery = describeMessageTool({
       cfg: createConfiguredMatrixConfig(),
+      senderIsOwner: true,
     } as never);
     if (!discovery) {
       throw new Error("describeMessageTool returned null");
@@ -87,17 +90,92 @@ describe("matrixMessageActions", () => {
     if (!schema) {
       throw new Error("matrix schema missing");
     }
-    const properties = (schema as { properties?: Record<string, unknown> }).properties ?? {};
+    const profileSchema = Array.isArray(schema)
+      ? schema.find((contribution) => contribution.actions?.includes("set-profile"))
+      : schema;
+    const properties = profileSchema?.properties ?? {};
 
     expect(actions).toContain(profileAction);
     expect(supportsAction({ action: profileAction } as never)).toBe(true);
-    expect(properties.displayName).toBeDefined();
-    expect(properties.avatarUrl).toBeDefined();
-    expect(properties.avatarPath).toBeDefined();
+    expect(discovery.mediaSourceParams).toEqual({
+      "set-profile": ["avatarUrl", "avatarPath"],
+    });
+    expect(Object.keys(properties).toSorted()).toEqual([
+      "avatarPath",
+      "avatarUrl",
+      "avatar_path",
+      "avatar_url",
+      "displayName",
+      "display_name",
+    ]);
+    expect(properties.displayName).toHaveProperty("type", "string");
+    expect(properties.avatarUrl).toHaveProperty("type", "string");
+    expect(properties.avatarPath).toHaveProperty("type", "string");
+  });
+
+  it("advertises custom-emote discovery and its reaction hint only when reactions are enabled", () => {
+    const cfg = createConfiguredMatrixConfig();
+    const enabled = matrixMessageActions.describeMessageTool({ cfg } as never);
+    const disabled = matrixMessageActions.describeMessageTool({
+      cfg: {
+        channels: {
+          matrix: { ...cfg.channels?.matrix, actions: { reactions: false } },
+        },
+      },
+    } as never);
+
+    expect(enabled?.actions).toContain("emoji-list");
+    expect(matrixMessageActions.supportsAction?.({ action: "emoji-list" } as never)).toBe(true);
+    expect(enabled?.schema).toMatchObject({
+      actions: ["react", "reactions"],
+      properties: {
+        emoji: {
+          description: expect.stringContaining('action:"emoji-list"'),
+        },
+      },
+    });
+    expect(disabled?.actions).not.toContain("emoji-list");
+    expect(disabled?.actions).not.toContain("react");
+    expect(disabled?.schema).toBeNull();
+  });
+
+  it("hides self-profile updates without owner identity context", () => {
+    const discovery = matrixMessageActions.describeMessageTool({
+      cfg: createConfiguredMatrixConfig(),
+    } as never);
+    if (!discovery) {
+      throw new Error("describeMessageTool returned null");
+    }
+
+    expect(discovery.actions).not.toContain(profileAction);
+  });
+
+  it("exposes verification actions only with owner identity context", () => {
+    const cfg = {
+      channels: {
+        matrix: {
+          ...createConfiguredMatrixConfig().channels?.matrix,
+          encryption: true,
+          actions: { verification: true },
+        },
+      },
+    } as CoreConfig;
+
+    const nonOwnerDiscovery = matrixMessageActions.describeMessageTool({
+      cfg,
+      senderIsOwner: false,
+    } as never);
+    const ownerDiscovery = matrixMessageActions.describeMessageTool({
+      cfg,
+      senderIsOwner: true,
+    } as never);
+
+    expect(nonOwnerDiscovery?.actions).not.toContain("permissions");
+    expect(ownerDiscovery?.actions).toContain("permissions");
   });
 
   it("hides gated actions when the default Matrix account disables them", () => {
-    const discovery = matrixMessageActions.describeMessageTool!({
+    const discovery = matrixMessageActions.describeMessageTool({
       cfg: {
         channels: {
           matrix: {
@@ -138,10 +216,11 @@ describe("matrixMessageActions", () => {
     const actions = discovery.actions;
 
     expect(actions).toEqual(["poll", "poll-vote"]);
+    expect(discovery.capabilities).toEqual(["presentation"]);
   });
 
   it("hides actions until defaultAccount is set for ambiguous multi-account configs", () => {
-    const discovery = matrixMessageActions.describeMessageTool!({
+    const discovery = matrixMessageActions.describeMessageTool({
       cfg: {
         channels: {
           matrix: {
@@ -164,6 +243,65 @@ describe("matrixMessageActions", () => {
     }
     const actions = discovery.actions;
 
-    expect(actions).toEqual([]);
+    expect(actions).toStrictEqual([]);
+    expect(discovery.capabilities).toStrictEqual([]);
+  });
+
+  it("honors the selected Matrix account during discovery", () => {
+    const cfg = {
+      channels: {
+        matrix: {
+          defaultAccount: "assistant",
+          accounts: {
+            assistant: {
+              homeserver: "https://matrix.example.org",
+              userId: "@assistant:example.org",
+              accessToken: "assistant-token",
+              actions: {
+                messages: true,
+                reactions: false,
+              },
+            },
+            ops: {
+              homeserver: "https://matrix.example.org",
+              userId: "@ops:example.org",
+              accessToken: "ops-token",
+              actions: {
+                messages: true,
+                reactions: true,
+              },
+            },
+          },
+        },
+      },
+    } as CoreConfig;
+
+    const describeMessageTool = matrixMessageActions.describeMessageTool;
+    if (!describeMessageTool) {
+      throw new Error("matrix message action discovery is unavailable");
+    }
+
+    const assistantDiscovery = describeMessageTool({
+      cfg,
+      accountId: "assistant",
+    } as never);
+    const opsDiscovery = describeMessageTool({
+      cfg,
+      accountId: "ops",
+    } as never);
+
+    if (!assistantDiscovery || !opsDiscovery) {
+      throw new Error("matrix action discovery returned null");
+    }
+
+    const assistantActions = assistantDiscovery.actions;
+    const opsActions = opsDiscovery.actions;
+
+    expect(assistantActions).not.toContain("react");
+    expect(assistantActions).not.toContain("reactions");
+    expect(assistantActions).not.toContain("emoji-list");
+    expect(opsActions).toContain("react");
+    expect(opsActions).toContain("reactions");
+    expect(opsActions).toContain("emoji-list");
   });
 });

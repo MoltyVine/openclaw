@@ -1,9 +1,11 @@
+// Covers task status snapshots and user-facing task status formatting.
 import { describe, expect, it } from "vitest";
 import type { TaskRecord } from "./task-registry.types.js";
 import {
   buildTaskStatusSnapshot,
   formatTaskStatusDetail,
   formatTaskStatusTitle,
+  sanitizeTaskStatusText,
 } from "./task-status.js";
 
 const NOW = 1_000_000_000_000;
@@ -54,6 +56,25 @@ describe("task status snapshot", () => {
     expect(snapshot.totalCount).toBe(0);
     expect(snapshot.focus).toBeUndefined();
   });
+
+  it("focuses blocked completions ahead of ordinary successes", () => {
+    const completed = makeTask({
+      taskId: "completed",
+      status: "succeeded",
+      endedAt: NOW - 100,
+    });
+    const blocked = makeTask({
+      taskId: "blocked",
+      status: "succeeded",
+      terminalOutcome: "blocked",
+      endedAt: NOW - 200,
+    });
+
+    const snapshot = buildTaskStatusSnapshot([completed, blocked], { now: NOW });
+
+    expect(snapshot.focus?.taskId).toBe("blocked");
+    expect(snapshot.recentFailureCount).toBe(1);
+  });
 });
 
 describe("task status formatting", () => {
@@ -72,5 +93,74 @@ describe("task status formatting", () => {
       "This progress detail is also intentionally long so the status line proves it truncates verbose task context",
     );
     expect(formatTaskStatusDetail(task)?.endsWith("…")).toBe(true);
+  });
+
+  it("strips leaked internal runtime context from task details", () => {
+    const task = makeTask({
+      status: "failed",
+      error: [
+        "OpenClaw runtime context (internal):",
+        "This context is runtime-generated, not user-authored. Keep internal details private.",
+        "",
+        "[Internal task completion event]",
+        "source: subagent",
+      ].join("\n"),
+    });
+
+    expect(formatTaskStatusDetail(task)).toBeUndefined();
+  });
+
+  it("sanitizes task titles before truncation", () => {
+    const task = makeTask({
+      task: [
+        "OpenClaw runtime context (internal):",
+        "This context is runtime-generated, not user-authored. Keep internal details private.",
+        "",
+        "[Internal task completion event]",
+        "source: subagent",
+      ].join("\n"),
+    });
+
+    expect(formatTaskStatusTitle(task)).toBe("Background task");
+  });
+
+  it("falls back to sanitized terminal summary when the error strips empty", () => {
+    const task = makeTask({
+      status: "failed",
+      error: [
+        "OpenClaw runtime context (internal):",
+        "This context is runtime-generated, not user-authored. Keep internal details private.",
+        "",
+        "[Internal task completion event]",
+        "source: subagent",
+      ].join("\n"),
+      terminalSummary: "Needs login approval.",
+    });
+
+    expect(formatTaskStatusDetail(task)).toBe("Needs login approval.");
+  });
+
+  it("redacts raw exec denial detail from terminal task status", () => {
+    const task = makeTask({
+      status: "succeeded",
+      terminalOutcome: "blocked",
+      terminalSummary: "Exec denied (gateway id=req-1, approval-timeout): bash -lc ls",
+    });
+
+    expect(formatTaskStatusDetail(task)).toBe("Command did not run: approval timed out.");
+  });
+
+  it("sanitizes free-form task status text for reuse in other surfaces", () => {
+    expect(
+      sanitizeTaskStatusText(
+        [
+          "OpenClaw runtime context (internal):",
+          "This context is runtime-generated, not user-authored. Keep internal details private.",
+          "",
+          "[Internal task completion event]",
+          "source: subagent",
+        ].join("\n"),
+      ),
+    ).toBe("");
   });
 });

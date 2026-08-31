@@ -1,44 +1,32 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
-const loadBundledPluginPublicSurfaceModuleSync = vi.hoisted(() => vi.fn());
-
-vi.mock("../plugin-sdk/facade-runtime.js", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../plugin-sdk/facade-runtime.js")>();
-  return {
-    ...actual,
-    loadBundledPluginPublicSurfaceModuleSync,
-  };
-});
+// TTS integration tests cover host runtime availability behavior.
+import { afterEach, describe, expect, it } from "vitest";
+import { setActiveDegradedSecretOwners } from "../secrets/runtime-degraded-state.js";
 
 describe("tts runtime facade", () => {
-  let ttsModulePromise: Promise<typeof import("./tts.js")> | undefined;
-
-  beforeEach(() => {
-    loadBundledPluginPublicSurfaceModuleSync.mockReset();
+  afterEach(() => {
+    setActiveDegradedSecretOwners([]);
   });
 
-  function importTtsModule() {
-    ttsModulePromise ??= import("./tts.js");
-    return ttsModulePromise;
-  }
+  it("blocks explicit synthesis but preserves text delivery when TTS is cold", async () => {
+    setActiveDegradedSecretOwners([
+      {
+        ownerKind: "capability",
+        ownerId: "tts",
+        state: "unavailable",
+        paths: ["tts.providers.elevenlabs.apiKey"],
+        refKeys: ["env:default:MISSING_TTS_KEY"],
+        reason: "secret reference was not found",
+      },
+    ]);
+    await import("./tts.js");
+    const { maybeApplyTtsToPayload, textToSpeech } = await import("../plugin-sdk/tts-runtime.js");
+    const payload = { text: "Keep this text." };
 
-  it("does not load speech-core on module import", async () => {
-    await importTtsModule();
-
-    expect(loadBundledPluginPublicSurfaceModuleSync).not.toHaveBeenCalled();
-  });
-
-  it("loads speech-core lazily on first runtime access", async () => {
-    const buildTtsSystemPromptHint = vi.fn().mockReturnValue("hint");
-    loadBundledPluginPublicSurfaceModuleSync.mockReturnValue({
-      buildTtsSystemPromptHint,
+    await expect(textToSpeech({ text: "Speak this.", cfg: {} })).rejects.toMatchObject({
+      code: "SECRET_SURFACE_UNAVAILABLE",
+      ownerKind: "capability",
+      ownerId: "tts",
     });
-
-    const tts = await importTtsModule();
-
-    expect(loadBundledPluginPublicSurfaceModuleSync).not.toHaveBeenCalled();
-    expect(tts.buildTtsSystemPromptHint({} as never)).toBe("hint");
-    expect(loadBundledPluginPublicSurfaceModuleSync).toHaveBeenCalledTimes(1);
-    expect(buildTtsSystemPromptHint).toHaveBeenCalledTimes(1);
+    await expect(maybeApplyTtsToPayload({ payload, cfg: {} })).resolves.toBe(payload);
   });
 });

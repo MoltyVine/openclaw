@@ -1,15 +1,26 @@
-import { getChannelPlugin } from "../../channels/plugins/index.js";
-import type { ChannelResolveKind, ChannelResolveResult } from "../../channels/plugins/types.js";
-import { resolveCommandSecretRefsViaGateway } from "../../cli/command-secret-gateway.js";
+// Implements `openclaw channels resolve` for provider-specific user/group target resolution.
+import {
+  normalizeLowercaseStringOrEmpty,
+  normalizeOptionalLowercaseString,
+} from "@openclaw/normalization-core/string-coerce";
+import { normalizeStringEntries } from "@openclaw/normalization-core/string-normalization";
+import { resolveConfiguredAgentId } from "../../agents/agent-scope-config.js";
+import type {
+  ChannelResolveKind,
+  ChannelResolveResult,
+} from "../../channels/plugins/types.adapters.js";
+import { resolveCommandConfigWithSecrets } from "../../cli/command-config-resolution.js";
+import { formatCliCommand } from "../../cli/command-format.js";
 import { getChannelsCommandSecretTargetIds } from "../../cli/command-secret-targets.js";
-import { loadConfig, readConfigFileSnapshot, replaceConfigFile } from "../../config/config.js";
-import { applyPluginAutoEnable } from "../../config/plugin-auto-enable.js";
+import { formatUnsupportedChannelActionMessage } from "../../cli/error-format.js";
+import { getRuntimeConfig } from "../../config/config.js";
 import { danger } from "../../globals.js";
 import { resolveMessageChannelSelection } from "../../infra/outbound/channel-selection.js";
 import { type RuntimeEnv, writeRuntimeJson } from "../../runtime.js";
 import { resolveInstallableChannelPlugin } from "../channel-setup/channel-plugin-resolution.js";
 
 export type ChannelsResolveOptions = {
+  agent?: string;
   channel?: string;
   account?: string;
   kind?: "auto" | "user" | "group" | "channel";
@@ -52,14 +63,48 @@ function detectAutoKind(input: string): ChannelResolveKind {
   if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
     return "user";
   }
-  if (
-    /^(user|discord|slack|matrix|msteams|teams|zalo|zalouser|googlechat|google-chat|gchat):/i.test(
-      trimmed,
-    )
-  ) {
+  if (/^user:/i.test(trimmed)) {
     return "user";
   }
   return "group";
+}
+
+function detectAutoKindForPlugin(
+  input: string,
+  plugin?: {
+    id: string;
+    meta?: {
+      aliases?: readonly string[];
+    };
+  },
+): ChannelResolveKind {
+  const generic = detectAutoKind(input);
+  if (generic === "user" || !plugin) {
+    return generic;
+  }
+  const trimmed = input.trim();
+  const lowered = normalizeLowercaseStringOrEmpty(trimmed);
+  const prefixes = [plugin.id, ...(plugin.meta?.aliases ?? [])]
+    .map((entry) => normalizeOptionalLowercaseString(entry))
+    .filter((entry): entry is string => Boolean(entry));
+  for (const prefix of prefixes) {
+    if (!lowered.startsWith(`${prefix}:`)) {
+      continue;
+    }
+    const remainder = lowered.slice(prefix.length + 1);
+    if (
+      remainder.startsWith("group:") ||
+      remainder.startsWith("channel:") ||
+      remainder.startsWith("room:") ||
+      remainder.startsWith("conversation:") ||
+      remainder.startsWith("spaces/") ||
+      remainder.startsWith("channels/")
+    ) {
+      return "group";
+    }
+    return "user";
+  }
+  return generic;
 }
 
 function formatResolveResult(result: ResolveResult): string {
@@ -71,63 +116,70 @@ function formatResolveResult(result: ResolveResult): string {
   return `${result.input} -> ${result.id}${name}${note}`;
 }
 
+/** Resolve user/group/channel labels into plugin-specific stable target ids. */
 export async function channelsResolveCommand(opts: ChannelsResolveOptions, runtime: RuntimeEnv) {
-  const sourceSnapshotPromise = readConfigFileSnapshot().catch(() => null);
-  const loadedRaw = loadConfig();
-  const { resolvedConfig, diagnostics } = await resolveCommandSecretRefsViaGateway({
+  const entries = normalizeStringEntries(opts.entries);
+  if (entries.length === 0) {
+    throw new Error(
+      `At least one entry is required. Example: ${formatCliCommand("openclaw channels resolve --channel discord <name-or-id>")}.`,
+    );
+  }
+
+  const loadedRaw = getRuntimeConfig();
+  const requestedAgent = opts.agent?.trim();
+  if (opts.agent !== undefined && !requestedAgent) {
+    throw new Error("--agent must not be blank");
+  }
+  const agentId = requestedAgent ? resolveConfiguredAgentId(loadedRaw, requestedAgent) : undefined;
+  const { effectiveConfig: cfg } = await resolveCommandConfigWithSecrets({
     config: loadedRaw,
     commandName: "channels resolve",
     targetIds: getChannelsCommandSecretTargetIds(),
+    agentId,
     mode: "read_only_operational",
+    runtime,
+    autoEnable: true,
   });
-  let cfg = applyPluginAutoEnable({
-    config: resolvedConfig,
-    env: process.env,
-  }).config;
-  for (const entry of diagnostics) {
-    runtime.log(`[secrets] ${entry}`);
-  }
-  const entries = (opts.entries ?? []).map((entry) => entry.trim()).filter(Boolean);
-  if (entries.length === 0) {
-    throw new Error("At least one entry is required.");
-  }
 
   const explicitChannel = opts.channel?.trim();
   const resolvedExplicit = explicitChannel
     ? await resolveInstallableChannelPlugin({
         cfg,
         runtime,
+        agentId,
         rawChannel: explicitChannel,
-        allowInstall: true,
+        allowInstall: false,
         supports: (plugin) => Boolean(plugin.resolver?.resolveTargets),
       })
     : null;
-  if (resolvedExplicit?.configChanged) {
-    cfg = resolvedExplicit.cfg;
-    await replaceConfigFile({
-      nextConfig: cfg,
-      baseHash: (await sourceSnapshotPromise)?.hash,
-    });
+  if (explicitChannel && resolvedExplicit?.catalogEntry && !resolvedExplicit.plugin) {
+    throw new Error(
+      `Channel plugin "${resolvedExplicit.catalogEntry.id}" is not installed. Run ${formatCliCommand(`openclaw channels add --channel ${resolvedExplicit.catalogEntry.id}`)} first.`,
+    );
   }
-
   const selection = explicitChannel
     ? {
         channel: resolvedExplicit?.channelId,
+        plugin: resolvedExplicit?.plugin,
       }
     : await resolveMessageChannelSelection({
         cfg,
         channel: opts.channel ?? null,
+        agentId,
       });
-  const plugin =
-    (explicitChannel ? resolvedExplicit?.plugin : undefined) ??
-    (selection.channel ? getChannelPlugin(selection.channel) : undefined);
+  const plugin = selection.plugin;
   if (!plugin?.resolver?.resolveTargets) {
     const channelText = selection.channel ?? explicitChannel ?? "";
-    throw new Error(`Channel ${channelText} does not support resolve.`);
+    throw new Error(
+      formatUnsupportedChannelActionMessage({
+        channel: channelText,
+        action: "resolve",
+      }),
+    );
   }
   const preferredKind = resolvePreferredKind(opts.kind);
 
-  let results: ResolveResult[] = [];
+  let results: ResolveResult[];
   if (preferredKind) {
     const resolved = await plugin.resolver.resolveTargets({
       cfg,
@@ -146,7 +198,7 @@ export async function channelsResolveCommand(opts: ChannelsResolveOptions, runti
   } else {
     const byKind = new Map<ChannelResolveKind, string[]>();
     for (const entry of entries) {
-      const kind = detectAutoKind(entry);
+      const kind = detectAutoKindForPlugin(entry, plugin);
       byKind.set(kind, [...(byKind.get(kind) ?? []), entry]);
     }
     const resolved: ChannelResolveResult[] = [];

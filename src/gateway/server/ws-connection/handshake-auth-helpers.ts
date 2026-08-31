@@ -1,14 +1,33 @@
+// Handshake auth helpers classify browser security context, pairing locality, and connect auth details.
+import { normalizeLowercaseStringOrEmpty } from "@openclaw/normalization-core/string-coerce";
+import {
+  GATEWAY_CLIENT_IDS,
+  GATEWAY_CLIENT_MODES,
+} from "../../../../packages/gateway-protocol/src/client-info.js";
+import type { ConnectParams } from "../../../../packages/gateway-protocol/src/index.js";
 import { verifyDeviceSignature } from "../../../infra/device-identity.js";
 import type { AuthRateLimiter } from "../../auth-rate-limit.js";
 import type { GatewayAuthResult } from "../../auth.js";
 import { buildDeviceAuthPayload, buildDeviceAuthPayloadV3 } from "../../device-auth.js";
-import { isLoopbackAddress } from "../../net.js";
-import type { ConnectParams } from "../../protocol/index.js";
+import {
+  isLoopbackAddress,
+  isLoopbackHost,
+  isPrivateOrLoopbackAddress,
+  isPrivateOrLoopbackHost,
+  resolveHostName,
+} from "../../net.js";
 import type { AuthProvidedKind } from "./auth-messages.js";
 
-export const BROWSER_ORIGIN_LOOPBACK_RATE_LIMIT_IP = "198.18.0.1";
+const BROWSER_ORIGIN_LOOPBACK_RATE_LIMIT_IP = "198.18.0.1";
+const BROWSER_ORIGIN_RATE_LIMIT_KEY_PREFIX = "browser-origin:";
+type PairingLocalityKind =
+  | "direct_local"
+  | "cli_container_local"
+  | "browser_container_local"
+  | "shared_secret_loopback_local"
+  | "remote";
 
-export type HandshakeBrowserSecurityContext = {
+type HandshakeBrowserSecurityContext = {
   hasBrowserOriginHeader: boolean;
   enforceOriginCheckForAnyClient: boolean;
   rateLimitClientIp: string | undefined;
@@ -20,7 +39,31 @@ type HandshakeConnectAuth = {
   bootstrapToken?: string;
   deviceToken?: string;
   password?: string;
+  approvalRuntimeToken?: string;
+  agentRuntimeIdentityToken?: string;
 };
+
+export function isNativeAppUiClient(client: ConnectParams["client"]): boolean {
+  return (
+    client.mode === GATEWAY_CLIENT_MODES.UI &&
+    (client.id === GATEWAY_CLIENT_IDS.MACOS_APP ||
+      client.id === GATEWAY_CLIENT_IDS.LINUX_APP ||
+      client.id === GATEWAY_CLIENT_IDS.IOS_APP ||
+      client.id === GATEWAY_CLIENT_IDS.ANDROID_APP)
+  );
+}
+
+function resolveBrowserOriginRateLimitKey(requestOrigin?: string): string {
+  const trimmedOrigin = requestOrigin?.trim();
+  if (!trimmedOrigin) {
+    return BROWSER_ORIGIN_LOOPBACK_RATE_LIMIT_IP;
+  }
+  try {
+    return `${BROWSER_ORIGIN_RATE_LIMIT_KEY_PREFIX}${normalizeLowercaseStringOrEmpty(new URL(trimmedOrigin).origin)}`;
+  } catch {
+    return BROWSER_ORIGIN_LOOPBACK_RATE_LIMIT_IP;
+  }
+}
 
 export function resolveHandshakeBrowserSecurityContext(params: {
   requestOrigin?: string;
@@ -36,7 +79,7 @@ export function resolveHandshakeBrowserSecurityContext(params: {
     enforceOriginCheckForAnyClient: hasBrowserOriginHeader,
     rateLimitClientIp:
       hasBrowserOriginHeader && isLoopbackAddress(params.clientIp)
-        ? BROWSER_ORIGIN_LOOPBACK_RATE_LIMIT_IP
+        ? resolveBrowserOriginRateLimitKey(params.requestOrigin)
         : params.clientIp,
     authRateLimiter:
       hasBrowserOriginHeader && params.browserRateLimiter
@@ -46,18 +89,182 @@ export function resolveHandshakeBrowserSecurityContext(params: {
 }
 
 export function shouldAllowSilentLocalPairing(params: {
-  isLocalClient: boolean;
+  autoApproveLocal?: boolean;
+  locality: PairingLocalityKind;
   hasBrowserOriginHeader: boolean;
   isControlUi: boolean;
   isWebchat: boolean;
+  isNativeAppUi?: boolean;
+  authMethod?: GatewayAuthResult["method"];
   reason: "not-paired" | "role-upgrade" | "scope-upgrade" | "metadata-upgrade";
 }): boolean {
+  if (params.locality === "remote") {
+    return false;
+  }
+  if (params.hasBrowserOriginHeader && !params.isControlUi && !params.isWebchat) {
+    return false;
+  }
+  if (params.reason === "metadata-upgrade") {
+    // Metadata-only reconnect refreshes stay automatic even when the operator
+    // disabled autoApproveLocal, to avoid approval churn after benign client or
+    // OS metadata changes. Direct-local refresh is limited to first-party
+    // native app UI clients; node-host, Browser, and Control-UI metadata
+    // pinning stays on the explicit approval path.
+    return (
+      !params.hasBrowserOriginHeader &&
+      !params.isControlUi &&
+      !params.isWebchat &&
+      ((params.locality === "direct_local" && params.isNativeAppUi === true) ||
+        params.locality === "cli_container_local" ||
+        params.locality === "shared_secret_loopback_local")
+    );
+  }
+  // Operators can require explicit approval for pairing and access upgrades.
+  if (params.autoApproveLocal === false) {
+    return false;
+  }
+  if (params.reason === "scope-upgrade") {
+    // Silently widening an existing row grants nothing a fresh local identity
+    // could not get through silent initial pairing — but only when this
+    // connect proved local-grade credentials itself. Identity-proxy methods
+    // (tailscale, trusted-proxy) and bearer device tokens never did, so their
+    // rows remain a durable scope cap.
+    return (
+      params.authMethod === "none" ||
+      params.authMethod === "token" ||
+      params.authMethod === "password"
+    );
+  }
+  return true;
+}
+
+function isCliCliClient(client: ConnectParams["client"]): boolean {
+  return client.id === GATEWAY_CLIENT_IDS.CLI && client.mode === GATEWAY_CLIENT_MODES.CLI;
+}
+
+function isSharedSecretAuthMethod(method: GatewayAuthResult["method"]): boolean {
+  return method === "token" || method === "password";
+}
+
+function isSharedSecretLoopbackLocalEquivalent(params: {
+  requestHost?: string;
+  remoteAddress?: string;
+  hasProxyHeaders: boolean;
+  hasBrowserOriginHeader: boolean;
+  sharedAuthOk: boolean;
+  authMethod: GatewayAuthResult["method"];
+}): boolean {
   return (
-    params.isLocalClient &&
-    (!params.hasBrowserOriginHeader || params.isControlUi || params.isWebchat) &&
-    (params.reason === "not-paired" ||
-      params.reason === "scope-upgrade" ||
-      params.reason === "role-upgrade")
+    params.sharedAuthOk &&
+    isSharedSecretAuthMethod(params.authMethod) &&
+    !params.hasProxyHeaders &&
+    !params.hasBrowserOriginHeader &&
+    isLoopbackAddress(params.remoteAddress) &&
+    isPrivateOrLoopbackHost(resolveHostName(params.requestHost))
+  );
+}
+
+function resolveOriginHost(origin?: string): string {
+  const trimmed = origin?.trim();
+  if (!trimmed) {
+    return "";
+  }
+  try {
+    return new URL(trimmed).hostname;
+  } catch {
+    return "";
+  }
+}
+
+function isControlUiBrowserContainerLocalEquivalent(params: {
+  connectParams: ConnectParams;
+  requestHost?: string;
+  requestOrigin?: string;
+  remoteAddress?: string;
+  hasProxyHeaders: boolean;
+  hasBrowserOriginHeader: boolean;
+  sharedAuthOk: boolean;
+  authMethod: GatewayAuthResult["method"];
+}): boolean {
+  const isControlUiBrowser =
+    params.connectParams.client.id === GATEWAY_CLIENT_IDS.CONTROL_UI &&
+    params.connectParams.client.mode === GATEWAY_CLIENT_MODES.WEBCHAT;
+  return (
+    isControlUiBrowser &&
+    params.sharedAuthOk &&
+    isSharedSecretAuthMethod(params.authMethod) &&
+    !params.hasProxyHeaders &&
+    params.hasBrowserOriginHeader &&
+    isPrivateOrLoopbackAddress(params.remoteAddress) &&
+    isLoopbackHost(resolveHostName(params.requestHost)) &&
+    isLoopbackHost(resolveOriginHost(params.requestOrigin))
+  );
+}
+
+export function resolvePairingLocality(params: {
+  connectParams: ConnectParams;
+  isLocalClient: boolean;
+  requestHost?: string;
+  requestOrigin?: string;
+  remoteAddress?: string;
+  hasProxyHeaders: boolean;
+  hasBrowserOriginHeader: boolean;
+  sharedAuthOk: boolean;
+  authMethod: GatewayAuthResult["method"];
+}): PairingLocalityKind {
+  if (params.isLocalClient) {
+    return "direct_local";
+  }
+  if (isControlUiBrowserContainerLocalEquivalent(params)) {
+    return "browser_container_local";
+  }
+  if (isSharedSecretLoopbackLocalEquivalent(params)) {
+    // The CLI container lane shares the shared-secret loopback predicate; only
+    // the client class distinguishes it for scope-preservation policy.
+    return isCliCliClient(params.connectParams.client)
+      ? "cli_container_local"
+      : "shared_secret_loopback_local";
+  }
+  return "remote";
+}
+
+export function shouldSkipLocalBackendSelfPairing(params: {
+  connectParams: ConnectParams;
+  locality: PairingLocalityKind;
+  hasBrowserOriginHeader: boolean;
+  sharedAuthOk: boolean;
+  authMethod: GatewayAuthResult["method"];
+}): boolean {
+  const isBackendClient =
+    params.connectParams.client.id === GATEWAY_CLIENT_IDS.GATEWAY_CLIENT &&
+    params.connectParams.client.mode === GATEWAY_CLIENT_MODES.BACKEND;
+  const isLocal =
+    params.locality === "direct_local" || params.locality === "shared_secret_loopback_local";
+  if (!isBackendClient || !isLocal || params.hasBrowserOriginHeader) {
+    return false;
+  }
+  // No-auth local backend: scoped bypass — not shared secret, but local-only
+  // device-less operation is safe when auth.mode is explicitly "none".
+  return (
+    params.authMethod === "none" ||
+    params.authMethod === "device-token" ||
+    (params.sharedAuthOk && isSharedSecretAuthMethod(params.authMethod))
+  );
+}
+
+export function shouldPreserveLocalCliSharedAuthScopes(params: {
+  connectParams: ConnectParams;
+  locality: PairingLocalityKind;
+  hasBrowserOriginHeader: boolean;
+  sharedAuthOk: boolean;
+  authMethod: GatewayAuthResult["method"];
+}): boolean {
+  return (
+    isCliCliClient(params.connectParams.client) &&
+    (params.locality === "direct_local" || params.locality === "cli_container_local") &&
+    !params.hasBrowserOriginHeader &&
+    params.sharedAuthOk &&
+    isSharedSecretAuthMethod(params.authMethod)
   );
 }
 
@@ -126,7 +333,7 @@ export function resolveDeviceSignaturePayloadVersion(params: {
   return null;
 }
 
-export function resolveAuthProvidedKind(
+function resolveAuthProvidedKind(
   connectAuth: HandshakeConnectAuth | null | undefined,
 ): AuthProvidedKind {
   return connectAuth?.password
@@ -184,6 +391,12 @@ export function resolveUnauthorizedHandshakeContext(params: {
         authProvided,
         canRetryWithDeviceToken,
         recommendedNextStep: "update_auth_credentials",
+      });
+    case "scope_mismatch":
+      return buildUnauthorizedHandshakeContext({
+        authProvided,
+        canRetryWithDeviceToken,
+        recommendedNextStep: "review_auth_configuration",
       });
     case "rate_limited":
       return buildUnauthorizedHandshakeContext({

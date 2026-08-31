@@ -1,24 +1,17 @@
-import {
-  createResolvedApproverActionAuthAdapter,
-  resolveApprovalApprovers,
-} from "openclaw/plugin-sdk/approval-runtime";
+// Matrix plugin module implements approval auth behavior.
+import { createChannelApprovalAuth } from "openclaw/plugin-sdk/approval-auth-runtime";
+import { normalizeMatrixApproverId } from "./approval-ids.js";
 import { resolveMatrixAccount } from "./matrix/accounts.js";
-import { normalizeMatrixUserId } from "./matrix/monitor/allowlist.js";
 import type { CoreConfig } from "./types.js";
 
-function normalizeMatrixApproverId(value: string | number): string | undefined {
-  const normalized = normalizeMatrixUserId(String(value));
-  return normalized || undefined;
-}
-
-export const matrixApprovalAuth = createResolvedApproverActionAuthAdapter({
+const matrixApproval = createChannelApprovalAuth({
   channelLabel: "Matrix",
-  resolveApprovers: ({ cfg, accountId }) => {
+  resolveInputs: ({ cfg, accountId }) => {
     const account = resolveMatrixAccount({ cfg: cfg as CoreConfig, accountId });
-    return resolveApprovalApprovers({
-      allowFrom: account.config.dm?.allowFrom,
-      normalizeApprover: normalizeMatrixApproverId,
-    });
+    return { allowFrom: account.config.dm?.allowFrom };
   },
-  normalizeSenderId: (value) => normalizeMatrixApproverId(value),
+  normalizeApprover: normalizeMatrixApproverId,
 });
+
+export const getMatrixApprovalAuthApprovers = matrixApproval.resolveApprovers;
+export const matrixApprovalAuth = matrixApproval.approvalAuth;

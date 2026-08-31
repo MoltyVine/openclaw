@@ -1,16 +1,33 @@
-import { defineChannelPluginEntry } from "openclaw/plugin-sdk/core";
-import { registerLineCardCommand } from "./src/card-command.js";
-import { linePlugin } from "./src/channel.js";
-import { setLineRuntime } from "./src/runtime.js";
+// Line plugin entrypoint registers its OpenClaw integration.
+import { defineBundledChannelEntry } from "openclaw/plugin-sdk/channel-entry-contract";
+import { createLazyRuntimeModule } from "openclaw/plugin-sdk/lazy-runtime";
 
-export { linePlugin } from "./src/channel.js";
-export { setLineRuntime } from "./src/runtime.js";
+const loadLineCardCommand = createLazyRuntimeModule(() => import("./src/card-command.js"));
 
-export default defineChannelPluginEntry({
+export default defineBundledChannelEntry({
   id: "line",
   name: "LINE",
   description: "LINE Messaging API channel plugin",
-  plugin: linePlugin,
-  setRuntime: setLineRuntime,
-  registerFull: registerLineCardCommand,
+  importMetaUrl: import.meta.url,
+  plugin: {
+    specifier: "./channel-plugin-api.js",
+    exportName: "linePlugin",
+  },
+  runtime: {
+    specifier: "./runtime-api.js",
+    exportName: "setLineRuntime",
+  },
+  registerFull(api) {
+    api.registerCommand({
+      name: "card",
+      description: "Send a rich card message.",
+      channels: ["line"],
+      acceptsArgs: true,
+      requireAuth: false,
+      async handler(ctx) {
+        const { handleLineCardCommand } = await loadLineCardCommand();
+        return await handleLineCardCommand(ctx.args);
+      },
+    });
+  },
 });

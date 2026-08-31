@@ -2,16 +2,14 @@
 summary: "Hubs that link to every OpenClaw doc"
 read_when:
   - You want a complete map of the documentation
-title: "Docs Hubs"
+title: "Docs hubs"
 ---
-
-# Docs hubs
 
 <Note>
 If you are new to OpenClaw, start with [Getting Started](/start/getting-started).
 </Note>
 
-Use these hubs to discover every page, including deep dives and reference docs that don’t appear in the left nav.
+Use these hubs to discover every page, including deep dives and reference docs that don't appear in the left nav.
 
 ## Start here
 
@@ -34,7 +32,7 @@ Use these hubs to discover every page, including deep dives and reference docs t
 - [Docker](/install/docker)
 - [Nix](/install/nix)
 - [Updating / rollback](/install/updating)
-- [Bun workflow (experimental)](/install/bun)
+- [Bun workflow](/install/bun)
 
 ## Core concepts
 
@@ -69,23 +67,23 @@ Use these hubs to discover every page, including deep dives and reference docs t
 
 - [Chat channels hub](/channels)
 - [Model providers hub](/providers/models)
-- [WhatsApp](/channels/whatsapp)
-- [Telegram](/channels/telegram)
-- [Slack](/channels/slack)
 - [Discord](/channels/discord)
-- [Mattermost](/channels/mattermost) (plugin)
+- [iMessage](/channels/imessage)
+- [Mattermost](/channels/mattermost)
+- [QQ Bot](/channels/qqbot)
 - [Signal](/channels/signal)
-- [BlueBubbles (iMessage)](/channels/bluebubbles)
-- [iMessage (legacy)](/channels/imessage)
-- [Location parsing](/channels/location)
+- [Slack](/channels/slack)
+- [Telegram](/channels/telegram)
 - [WebChat](/web/webchat)
-- [Webhooks](/automation/webhook)
-- [Gmail Pub/Sub](/automation/gmail-pubsub)
+- [WhatsApp](/channels/whatsapp)
+- [Location parsing](/channels/location)
+- [Webhooks](/automation/cron-jobs#webhooks)
+- [Gmail Pub/Sub](/automation/cron-jobs#gmail-pubsub-integration)
 
 ## Gateway + operations
 
 - [Gateway runbook](/gateway)
-- [Network model](/gateway/network-model)
+- [Network model](/network#core-model)
 - [Gateway pairing](/gateway/pairing)
 - [Gateway lock](/gateway/gateway-lock)
 - [Background process](/gateway/background-process)
@@ -105,13 +103,12 @@ Use these hubs to discover every page, including deep dives and reference docs t
 ## Tools + automation
 
 - [Tools surface](/tools)
-- [OpenProse](/prose)
 - [CLI reference](/cli)
 - [Exec tool](/tools/exec)
 - [PDF tool](/tools/pdf)
 - [Elevated mode](/tools/elevated)
 - [Cron jobs](/automation/cron-jobs)
-- [Cron vs Heartbeat](/automation/cron-vs-heartbeat)
+- [Automation](/automation)
 - [Thinking + verbose](/tools/thinking)
 - [Models](/concepts/models)
 - [Sub-agents](/tools/subagents)
@@ -119,7 +116,7 @@ Use these hubs to discover every page, including deep dives and reference docs t
 - [Terminal UI](/web/tui)
 - [Browser control](/tools/browser)
 - [Browser (Linux troubleshooting)](/tools/browser-linux-troubleshooting)
-- [Polls](/automation/poll)
+- [Polls](/cli/message)
 
 ## Nodes, media, voice
 
@@ -137,7 +134,7 @@ Use these hubs to discover every page, including deep dives and reference docs t
 - [macOS](/platforms/macos)
 - [iOS](/platforms/ios)
 - [Android](/platforms/android)
-- [Windows (WSL2)](/platforms/windows)
+- [Windows Hub](/platforms/windows)
 - [Linux](/platforms/linux)
 - [Web surfaces](/web)
 
@@ -148,27 +145,27 @@ Use these hubs to discover every page, including deep dives and reference docs t
 - [macOS voice wake](/platforms/mac/voicewake)
 - [macOS voice overlay](/platforms/mac/voice-overlay)
 - [macOS WebChat](/platforms/mac/webchat)
-- [macOS Canvas](/platforms/mac/canvas)
-- [macOS child process](/platforms/mac/child-process)
+- [macOS widget panel](/platforms/mac/canvas)
+- [macOS gateway (launchd)](/platforms/mac/bundled-gateway)
 - [macOS health](/platforms/mac/health)
 - [macOS icon](/platforms/mac/icon)
 - [macOS logging](/platforms/mac/logging)
 - [macOS permissions](/platforms/mac/permissions)
 - [macOS remote](/platforms/mac/remote)
 - [macOS signing](/platforms/mac/signing)
-- [macOS gateway (launchd)](/platforms/mac/bundled-gateway)
 - [macOS XPC](/platforms/mac/xpc)
 - [macOS skills](/platforms/mac/skills)
 - [macOS Peekaboo](/platforms/mac/peekaboo)
 
-## Extensions + plugins
+## Plugins
 
 - [Plugins overview](/tools/plugin)
 - [Building plugins](/plugins/building-plugins)
+- [Plugin hooks](/plugins/hooks)
 - [Plugin manifest](/plugins/manifest)
 - [Agent tools](/plugins/building-plugins#registering-agent-tools)
 - [Plugin bundles](/plugins/bundles)
-- [Community plugins](/plugins/community)
+- [ClawHub](/clawhub)
 - [Capability cookbook](/tools/capability-cookbook)
 - [Voice call plugin](/plugins/voice-call)
 - [Zalo user plugin](/plugins/zalouser)
@@ -176,15 +173,15 @@ Use these hubs to discover every page, including deep dives and reference docs t
 ## Workspace + templates
 
 - [Skills](/tools/skills)
-- [ClawHub](/tools/clawhub)
+- [ClawHub](/clawhub)
 - [Skills config](/tools/skills-config)
 - [Default AGENTS](/reference/AGENTS.default)
 - [Templates: AGENTS](/reference/templates/AGENTS)
 - [Templates: BOOTSTRAP](/reference/templates/BOOTSTRAP)
-- [Templates: HEARTBEAT](/reference/templates/HEARTBEAT)
+- [Retired HEARTBEAT.md workspace file](/reference/templates/HEARTBEAT)
 - [Templates: IDENTITY](/reference/templates/IDENTITY)
 - [Templates: SOUL](/reference/templates/SOUL)
-- [Templates: TOOLS](/reference/templates/TOOLS)
+- [Templates: AGENTS](/reference/templates/AGENTS)
 - [Templates: USER](/reference/templates/USER)
 
 ## Project
@@ -196,3 +193,7 @@ Use these hubs to discover every page, including deep dives and reference docs t
 - [Testing](/reference/test)
 - [Release policy](/reference/RELEASING)
 - [Device models](/reference/device-models)
+
+## Related
+
+- [Getting started](/start/getting-started)

@@ -1,5 +1,5 @@
+// Implements task-list commands that route through the current session agent.
 import { resolveSessionAgentId } from "../../agents/agent-scope.js";
-import { logVerbose } from "../../globals.js";
 import { formatDurationCompact } from "../../infra/format-time/format-duration.ts";
 import { formatTimeAgo } from "../../infra/format-time/format-relative.ts";
 import type { TaskRecord } from "../../tasks/task-registry.types.js";
@@ -7,16 +7,23 @@ import {
   listTasksForAgentIdForStatus,
   listTasksForSessionKeyForStatus,
 } from "../../tasks/task-status-access.js";
-import { buildTaskStatusSnapshot } from "../../tasks/task-status.js";
+import {
+  buildTaskStatusSnapshot,
+  formatTaskStatus,
+  formatTaskStatusDetail,
+  formatTaskStatusTitle,
+} from "../../tasks/task-status.js";
 import type { ReplyPayload } from "../types.js";
+import { commandReply, defineAuthorizedTextCommand, matchCommandPrefix } from "./command-gates.js";
 import type { CommandHandler, HandleCommandsParams } from "./commands-types.js";
 
 const MAX_VISIBLE_TASKS = 5;
 
-const TASK_STATUS_ICONS: Record<TaskRecord["status"], string> = {
+const TASK_STATUS_ICONS: Record<ReturnType<typeof formatTaskStatus>, string> = {
   queued: "🟡",
   running: "🟢",
   succeeded: "✅",
+  blocked: "⚠️",
   failed: "🔴",
   timed_out: "⏱️",
   cancelled: "⚪️",
@@ -57,27 +64,23 @@ function formatTaskTiming(task: TaskRecord): string | undefined {
   return `finished ${formatTimeAgo(Date.now() - endedAt)}`;
 }
 
-function formatTaskDetail(task: TaskRecord): string | undefined {
-  if (task.status === "running" || task.status === "queued") {
-    return task.progressSummary?.trim();
-  }
-  return task.error?.trim() || task.terminalSummary?.trim();
-}
-
 function formatVisibleTask(task: TaskRecord, index: number): string {
-  const title = task.label?.trim() || task.task.trim();
-  const status = task.status.replaceAll("_", " ");
+  const title = formatTaskStatusTitle(task);
+  const status = formatTaskStatus(task);
   const timing = formatTaskTiming(task);
-  const detail = formatTaskDetail(task);
-  const meta = [TASK_RUNTIME_LABELS[task.runtime], status, timing].filter(Boolean).join(" · ");
-  const lines = [`${index + 1}. ${TASK_STATUS_ICONS[task.status]} ${title}`, `   ${meta}`];
+  const detail = formatTaskStatusDetail(task);
+  let meta = `${TASK_RUNTIME_LABELS[task.runtime]} · ${status.replaceAll("_", " ")}`;
+  if (timing) {
+    meta += ` · ${timing}`;
+  }
+  const lines = [`${index + 1}. ${TASK_STATUS_ICONS[status]} ${title}`, `   ${meta}`];
   if (detail) {
     lines.push(`   ${detail}`);
   }
   return lines.join("\n");
 }
 
-export function buildTasksText(params: { sessionKey: string; agentId: string }): string {
+function buildTasksText(params: { sessionKey: string; agentId: string }): string {
   const sessionSnapshot = buildTaskStatusSnapshot(
     listTasksForSessionKeyForStatus(params.sessionKey),
   );
@@ -106,13 +109,11 @@ export function buildTasksText(params: { sessionKey: string; agentId: string }):
   return lines.join("\n");
 }
 
-export async function buildTasksReply(params: HandleCommandsParams): Promise<ReplyPayload> {
-  const agentId =
-    params.agentId ??
-    resolveSessionAgentId({
-      sessionKey: params.sessionKey,
-      config: params.cfg,
-    });
+async function buildTasksReply(params: HandleCommandsParams): Promise<ReplyPayload> {
+  const agentId = resolveSessionAgentId({
+    sessionKey: params.sessionKey,
+    config: params.cfg,
+  });
   return {
     text: buildTasksText({
       sessionKey: params.sessionKey,
@@ -121,28 +122,14 @@ export async function buildTasksReply(params: HandleCommandsParams): Promise<Rep
   };
 }
 
-export const handleTasksCommand: CommandHandler = async (params, allowTextCommands) => {
-  if (!allowTextCommands) {
-    return null;
-  }
-  const normalized = params.command.commandBodyNormalized;
-  if (normalized !== "/tasks" && !normalized.startsWith("/tasks ")) {
-    return null;
-  }
-  if (!params.command.isAuthorizedSender) {
-    logVerbose(
-      `Ignoring /tasks from unauthorized sender: ${params.command.senderId || "<unknown>"}`,
-    );
-    return { shouldContinue: false };
-  }
-  if (normalized !== "/tasks") {
-    return {
-      shouldContinue: false,
-      reply: { text: "Usage: /tasks" },
-    };
-  }
-  return {
-    shouldContinue: false,
-    reply: await buildTasksReply(params),
-  };
-};
+export const handleTasksCommand: CommandHandler = defineAuthorizedTextCommand(
+  {
+    label: "/tasks",
+    match: (body) => matchCommandPrefix(body, "/tasks"),
+    silentUnauthorized: true,
+  },
+  async (params) =>
+    params.command.commandBodyNormalized === "/tasks"
+      ? { shouldContinue: false, reply: await buildTasksReply(params) }
+      : commandReply("Usage: /tasks"),
+);

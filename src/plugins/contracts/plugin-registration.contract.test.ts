@@ -1,130 +1,18 @@
-import { describePluginRegistrationContract } from "../../../test/helpers/plugins/plugin-registration-contract.js";
+import { pluginRegistrationContractCases } from "../../plugin-sdk/test-helpers/plugin-registration-contract-cases.js";
+import {
+  installPluginRegistrationContract,
+  type PluginRegistrationContractResolver,
+} from "../../plugin-sdk/test-helpers/plugin-registration-contract.js";
+// Plugin registration contract tests cover manifest registration cases exposed through the SDK.
+import { BUNDLED_PLUGIN_CONTRACT_SNAPSHOTS } from "./inventory/bundled-capability-metadata.js";
 
-type PluginRegistrationContractParams = Parameters<typeof describePluginRegistrationContract>[0];
+const resolvePluginRegistrationContract: PluginRegistrationContractResolver = (pluginId) =>
+  BUNDLED_PLUGIN_CONTRACT_SNAPSHOTS.find((entry) => entry.pluginId === pluginId);
 
-const pluginRegistrationContractTests: PluginRegistrationContractParams[] = [
-  {
-    pluginId: "anthropic",
-    providerIds: ["anthropic"],
-    mediaUnderstandingProviderIds: ["anthropic"],
-    cliBackendIds: ["claude-cli"],
-    requireDescribeImages: true,
-  },
-  {
-    pluginId: "brave",
-    webSearchProviderIds: ["brave"],
-  },
-  {
-    pluginId: "deepgram",
-    mediaUnderstandingProviderIds: ["deepgram"],
-  },
-  {
-    pluginId: "duckduckgo",
-    webSearchProviderIds: ["duckduckgo"],
-  },
-  {
-    pluginId: "elevenlabs",
-    speechProviderIds: ["elevenlabs"],
-    requireSpeechVoices: true,
-  },
-  {
-    pluginId: "exa",
-    webSearchProviderIds: ["exa"],
-  },
-  {
-    pluginId: "fal",
-    providerIds: ["fal"],
-    imageGenerationProviderIds: ["fal"],
-  },
-  {
-    pluginId: "firecrawl",
-    webSearchProviderIds: ["firecrawl"],
-    toolNames: ["firecrawl_search", "firecrawl_scrape"],
-  },
-  {
-    pluginId: "google",
-    providerIds: ["google", "google-gemini-cli"],
-    webSearchProviderIds: ["gemini"],
-    mediaUnderstandingProviderIds: ["google"],
-    imageGenerationProviderIds: ["google"],
-    cliBackendIds: ["google-gemini-cli"],
-    requireDescribeImages: true,
-    requireGenerateImage: true,
-  },
-  {
-    pluginId: "groq",
-    mediaUnderstandingProviderIds: ["groq"],
-  },
-  {
-    pluginId: "microsoft",
-    speechProviderIds: ["microsoft"],
-    requireSpeechVoices: true,
-  },
-  {
-    pluginId: "minimax",
-    providerIds: ["minimax", "minimax-portal"],
-    mediaUnderstandingProviderIds: ["minimax", "minimax-portal"],
-    imageGenerationProviderIds: ["minimax", "minimax-portal"],
-    requireDescribeImages: true,
-    requireGenerateImage: true,
-  },
-  {
-    pluginId: "mistral",
-    mediaUnderstandingProviderIds: ["mistral"],
-  },
-  {
-    pluginId: "moonshot",
-    providerIds: ["moonshot"],
-    webSearchProviderIds: ["kimi"],
-    mediaUnderstandingProviderIds: ["moonshot"],
-    requireDescribeImages: true,
-    manifestAuthChoice: {
-      pluginId: "kimi",
-      choiceId: "kimi-code-api-key",
-      choiceLabel: "Kimi Code API key (subscription)",
-      groupId: "moonshot",
-      groupLabel: "Moonshot AI (Kimi K2.5)",
-      groupHint: "Kimi K2.5",
-    },
-  },
-  {
-    pluginId: "openai",
-    providerIds: ["openai", "openai-codex"],
-    speechProviderIds: ["openai"],
-    mediaUnderstandingProviderIds: ["openai", "openai-codex"],
-    imageGenerationProviderIds: ["openai"],
-    cliBackendIds: ["codex-cli"],
-    requireSpeechVoices: true,
-    requireDescribeImages: true,
-    requireGenerateImage: true,
-  },
-  {
-    pluginId: "openrouter",
-    providerIds: ["openrouter"],
-    mediaUnderstandingProviderIds: ["openrouter"],
-    requireDescribeImages: true,
-  },
-  {
-    pluginId: "perplexity",
-    webSearchProviderIds: ["perplexity"],
-  },
-  {
-    pluginId: "tavily",
-    webSearchProviderIds: ["tavily"],
-    toolNames: ["tavily_search", "tavily_extract"],
-  },
-  {
-    pluginId: "xai",
-    providerIds: ["xai"],
-    webSearchProviderIds: ["grok"],
-  },
-  {
-    pluginId: "zai",
-    mediaUnderstandingProviderIds: ["zai"],
-    requireDescribeImages: true,
-  },
-];
+const pluginRegistrationContractCaseList = Object.values(pluginRegistrationContractCases).toSorted(
+  (left, right) => left.pluginId.localeCompare(right.pluginId),
+);
 
-for (const params of pluginRegistrationContractTests) {
-  describePluginRegistrationContract(params);
+for (const contractCase of pluginRegistrationContractCaseList) {
+  installPluginRegistrationContract(contractCase, resolvePluginRegistrationContract);
 }

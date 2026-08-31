@@ -1,8 +1,9 @@
+// Outbound send mapping tests cover CLI-to-channel outbound payload mapping.
 import { describe, expect, it, vi } from "vitest";
 import { createOutboundSendDepsFromCliSource } from "./outbound-send-mapping.js";
 
 describe("createOutboundSendDepsFromCliSource", () => {
-  it("adds legacy aliases for channel-keyed send deps", () => {
+  it("adds generic legacy aliases for channel-keyed send deps", () => {
     const deps = {
       whatsapp: vi.fn(),
       telegram: vi.fn(),
@@ -21,12 +22,20 @@ describe("createOutboundSendDepsFromCliSource", () => {
       slack: deps.slack,
       signal: deps.signal,
       imessage: deps.imessage,
-      sendWhatsApp: deps.whatsapp,
+      sendWhatsapp: deps.whatsapp,
       sendTelegram: deps.telegram,
       sendDiscord: deps.discord,
       sendSlack: deps.slack,
       sendSignal: deps.signal,
-      sendIMessage: deps.imessage,
+      sendImessage: deps.imessage,
     });
+  });
+
+  it("preserves explicitly provided Discord voice helper deps", () => {
+    const discordVoice = vi.fn();
+    const outbound = createOutboundSendDepsFromCliSource({ discordVoice });
+
+    expect(outbound.discordVoice).toBe(discordVoice);
+    expect(outbound.sendDiscordVoice).toBe(discordVoice);
   });
 });
