@@ -11,39 +11,6 @@ on:
         options:
           - all
           - security
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    paths:
-      - ".github/actions/**"
-      - ".github/codeql/**"
-      - ".github/workflows/**"
-      - "extensions/acpx/src/**"
-      - "extensions/bonjour/src/advertiser.ts"
-      - "extensions/browser/src/browser/chrome-mcp.ts"
-      - "extensions/browser/src/browser/chrome.executables.ts"
-      - "extensions/browser/src/browser/chrome.ts"
-      - "extensions/codex/src/app-server/sandbox-exec-server/**"
-      - "extensions/codex/src/app-server/transport-stdio.ts"
-      - "extensions/codex/src/node-cli-sessions.ts"
-      - "extensions/file-transfer/src/**"
-      - "extensions/google-meet/src/**"
-      - "extensions/imessage/src/**"
-      - "extensions/memory-wiki/src/obsidian.ts"
-      - "extensions/microsoft-foundry/cli.ts"
-      - "extensions/ollama/src/wsl2-crash-loop-check.ts"
-      - "extensions/qa-lab/src/**"
-      - "extensions/signal/src/daemon.ts"
-      - "extensions/tts-local-cli/speech-provider.ts"
-      - "extensions/voice-call/src/**"
-      - "packages/**"
-      - "scripts/**"
-      - "src/**"
-  push:
-    branches:
-      - main
-  schedule:
-    - cron: "0 6 * * *"
-
 concurrency:
   group: codeql-${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && format('manual-{0}', github.run_id) || github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('ref-{0}', github.ref) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
