@@ -3,8 +3,6 @@ name: OpenClaw Performance
 run-name: ${{ inputs.dispatch_id != '' && format('OpenClaw Performance {0}', inputs.dispatch_id) || 'OpenClaw Performance' }}
 
 on:
-  schedule:
-    - cron: "11 5 * * *"
   workflow_dispatch:
     inputs:
       target_ref:

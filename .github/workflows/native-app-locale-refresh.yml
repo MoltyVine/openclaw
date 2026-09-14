@@ -1,29 +1,6 @@
 name: Native App Locale Refresh
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - apps/android/app/src/main/**
-      - apps/android/app/src/play/**
-      - apps/android/app/src/thirdParty/**
-      - apps/android/wear/src/main/**
-      - apps/ios/**
-      - apps/macos/Sources/**
-      - apps/macos/Package.swift
-      - apps/shared/OpenClawKit/Sources/**
-      - apps/.i18n/native/**
-      - apps/.i18n/native-source.json
-      - scripts/control-ui-i18n.ts
-      - scripts/android-app-i18n.ts
-      - scripts/apple-app-i18n.ts
-      - scripts/native-app-i18n.ts
-      - scripts/native-i18n-locales.ts
-      - ui/src/i18n/.i18n/glossary.*.json
-      - .github/actions/create-generated-pr-tokens/action.yml
-      - .github/actions/publish-generated-pr/action.yml
-      - .github/workflows/native-app-locale-refresh.yml
   workflow_dispatch:
 
 permissions:

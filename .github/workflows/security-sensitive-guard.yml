@@ -1,9 +1,7 @@
 name: Security Sensitive Guard
 
 on:
-  pull_request_target: # zizmor: ignore[dangerous-triggers] checks trusted base script only; never checks out PR head
-    types: [opened, reopened, synchronize, ready_for_review]
-
+  workflow_dispatch:
 permissions:
   contents: read
   pull-requests: write

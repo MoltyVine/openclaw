@@ -1,8 +1,6 @@
 name: QA-Lab - All Lanes
 
 on:
-  schedule:
-    - cron: "41 4 * * *"
   workflow_call:
     inputs:
       ref:

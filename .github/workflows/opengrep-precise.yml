@@ -8,20 +8,7 @@ name: OpenGrep — PR Diff
 # For a repository-wide scan, use the manual OpenGrep — Full workflow.
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    paths:
-      - ".github/actions/ensure-base-commit/**"
-      - ".github/workflows/opengrep-precise.yml"
-      - ".github/workflows/opengrep-precise-full.yml"
-      - ".semgrepignore"
-      - "apps/**"
-      - "extensions/**"
-      - "packages/**"
-      - "scripts/**"
-      - "security/opengrep/**"
-      - "src/**"
-
+  workflow_dispatch:
 concurrency:
   group: opengrep-pr-diff-${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true

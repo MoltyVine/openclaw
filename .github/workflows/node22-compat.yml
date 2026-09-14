@@ -1,8 +1,6 @@
 name: Node 22 Compat
 
 on:
-  schedule:
-    - cron: "23 5 * * 1"
   workflow_dispatch:
 
 permissions:

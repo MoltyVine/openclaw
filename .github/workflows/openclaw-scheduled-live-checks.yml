@@ -1,8 +1,6 @@
 name: OpenClaw Scheduled Live And E2E Checks
 
 on:
-  schedule:
-    - cron: "23 4 * * *"
   workflow_dispatch:
 
 permissions:

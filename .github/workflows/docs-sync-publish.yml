@@ -1,20 +1,6 @@
 name: Docs Sync Publish Repo
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - docs/**
-      - scripts/docs-list.js
-      - scripts/docs-sync-publish.mjs
-      - scripts/check-docs-mdx.mjs
-      - scripts/check-docs-mdx.mts
-      - scripts/lib/arg-utils.runtime.mjs
-      - scripts/lib/mintlify-accordion.mjs
-      - scripts/lib/tsx-cli-shim.mjs
-      - scripts/lib/local-check-runtime.mts
-      - .github/workflows/docs-sync-publish.yml
   workflow_dispatch:
 
 permissions:
