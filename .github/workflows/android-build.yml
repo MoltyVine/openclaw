@@ -33,6 +33,13 @@ jobs:
 
     - name: Set up Android SDK
       uses: android-actions/setup-android@v3
+      with:
+        # Default packages "tools platform-tools" pulls the legacy `tools`
+        # SDK component via `sdkmanager tools`; Google has removed it from
+        # the SDK repository index, so the action's own install step fails
+        # before any Gradle task runs. Gradle doesn't need it (it manages
+        # build-tools/platforms itself), so only fetch platform-tools.
+        packages: 'platform-tools'
 
     - name: Install Android SDK components
       run: |
