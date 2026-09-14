@@ -93,7 +93,12 @@ jobs:
         # Debug-only: the bare `build` lifecycle task also assembles release
         # variants, which require signing config and -PopenclawBuildCommit /
         # -PopenclawBuildTimestamp that this smoke workflow never provides.
-        ./gradlew assemblePlayDebug assembleThirdPartyDebug --stacktrace --build-cache --info 2>&1 | tee build-output.log || true
+        # generateMermaidAssets shells out to `pnpm --dir packages/mermaid-renderer
+        # build`, which needs a full Node/pnpm workspace install this lightweight
+        # smoke workflow doesn't set up. It only feeds an optional asset source
+        # directory (nothing else declares its output as a required input), so
+        # skipping it is safe for a debug compile/lint/package smoke check.
+        ./gradlew assemblePlayDebug assembleThirdPartyDebug -x generateMermaidAssets --stacktrace --build-cache --info 2>&1 | tee build-output.log || true
         echo "=== Build finished ==="
         tail -200 build-output.log
       working-directory: apps/android
@@ -139,7 +144,8 @@ jobs:
     - name: Run Lint
       # Scoped to the debug variants for the same reason as the build step above:
       # the bare `lint` task also lints release variants and hits the same gate.
-      run: ./gradlew lintPlayDebug lintThirdPartyDebug
+      # generateMermaidAssets excluded for the same reason as the build step.
+      run: ./gradlew lintPlayDebug lintThirdPartyDebug -x generateMermaidAssets
       working-directory: apps/android
 
     - name: Upload Lint Report
