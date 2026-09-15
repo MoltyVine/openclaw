@@ -1,11 +1,6 @@
 name: Linux App
 
 on:
-  pull_request:
-    paths:
-      - "apps/linux/**"
-      - ".github/workflows/linux-app.yml"
-      - ".github/workflows/linux-app-release.yml"
   workflow_dispatch:
 
 concurrency:

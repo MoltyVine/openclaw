@@ -1,9 +1,7 @@
 name: Maintainer Command Reactions
 
 on:
-  issue_comment:
-    types: [created, edited]
-
+  workflow_dispatch:
 permissions: {}
 
 concurrency:
