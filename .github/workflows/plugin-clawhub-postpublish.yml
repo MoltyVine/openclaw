@@ -1,10 +1,7 @@
 name: Plugin ClawHub Postpublish
 
 on:
-  workflow_run: # zizmor: ignore[dangerous-triggers] read-only verifier; authenticates exact successful parent/child attempts and immutable receipt/artifact tuples; never executes downloaded content
-    workflows: [OpenClaw Release Publish]
-    types: [completed]
-
+  workflow_dispatch:
 permissions:
   actions: read
   contents: read

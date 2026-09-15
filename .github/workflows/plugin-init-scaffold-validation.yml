@@ -2,29 +2,6 @@ name: Plugin Init Scaffold Validation
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/plugin-init-scaffold-validation.yml"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - "scripts/validate-plugin-init-provider-scaffold.ts"
-      - "src/cli/plugins-authoring-command.ts"
-      - "src/cli/plugins-authoring-command.test.ts"
-      - "src/cli/plugins-cli.ts"
-      - "src/plugin-sdk/**"
-  pull_request:
-    types: [opened, reopened, synchronize, ready_for_review]
-    paths:
-      - ".github/workflows/plugin-init-scaffold-validation.yml"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - "scripts/validate-plugin-init-provider-scaffold.ts"
-      - "src/cli/plugins-authoring-command.ts"
-      - "src/cli/plugins-authoring-command.test.ts"
-      - "src/cli/plugins-cli.ts"
-      - "src/plugin-sdk/**"
-
 permissions:
   contents: read
 
