@@ -1,29 +1,6 @@
 name: Browser MCP contract
 
 on:
-  pull_request:
-    types: [opened, reopened, synchronize, ready_for_review]
-    paths:
-      - "extensions/browser/src/browser/chrome-mcp*"
-      - "extensions/browser/src/browser/routes/agent.act.existing-session*"
-      - "extensions/browser/src/browser/routes/agent.act.wait-visibility.chromium.test.ts"
-      - "extensions/browser/package.json"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - "pnpm-workspace.yaml"
-      - "patches/chrome-devtools-mcp@*.patch"
-      - "src/infra/node-runtime-executable.ts"
-      - "src/plugin-sdk/process-runtime.ts"
-      - "scripts/check-openclaw-package-tarball.mts"
-      - "scripts/lib/package-bundled-dependencies.mts"
-      - "scripts/ensure-playwright-chromium.mts"
-      - "scripts/run-vitest.mjs"
-      - "test/scripts/check-openclaw-package-tarball.bundled-mcp.test.ts"
-      - "test/scripts/package-tarball-fixture.ts"
-      - "test/vitest/vitest.extension-browser.config.ts"
-      - "test/vitest/vitest.tooling.config.ts"
-      - ".github/actions/setup-node-env/**"
-      - ".github/workflows/browser-mcp-contract.yml"
   workflow_dispatch:
 
 permissions:

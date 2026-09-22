@@ -2,12 +2,6 @@ name: Live Media Runner Image
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - ".github/images/live-media-runner/Dockerfile"
-      - ".github/workflows/live-media-runner-image.yml"
-
 permissions:
   contents: read
   packages: write

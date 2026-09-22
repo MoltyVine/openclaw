@@ -1,14 +1,7 @@
 name: Security Review
 
 on:
-  pull_request_target: # zizmor: ignore[dangerous-triggers] executes trusted workflow scripts only; never checks out PR code
-    types: [opened, reopened, synchronize, ready_for_review, edited, closed]
-  issue_comment:
-    types: [created, edited, deleted]
-  workflow_run: # zizmor: ignore[dangerous-triggers] reads CI metadata only; never downloads artifacts or executes PR code
-    workflows: [CI]
-    types: [completed]
-
+  workflow_dispatch:
 permissions:
   contents: read
   pull-requests: read

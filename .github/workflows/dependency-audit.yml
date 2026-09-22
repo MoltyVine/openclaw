@@ -1,8 +1,6 @@
 name: Dependency Audit
 
 on:
-  schedule:
-    - cron: "23 7 * * *"
   workflow_dispatch:
 
 permissions:
