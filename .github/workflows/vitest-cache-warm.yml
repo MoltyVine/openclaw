@@ -1,17 +1,7 @@
 name: Vitest Cache Warm
 
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - "**/*.md"
-      - "docs/**"
   workflow_dispatch:
-  repository_dispatch:
-    types: [vitest-cache-warm]
-  schedule:
-    - cron: "17 8 * * *"
-
 permissions:
   contents: read
 

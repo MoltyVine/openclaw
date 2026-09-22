@@ -2,47 +2,6 @@ name: Plugin NPM Release
 run-name: ${{ github.event_name == 'workflow_dispatch' && (inputs.preflight_only && inputs.trusted_publisher_preflight && format('Plugin NPM Trusted Publisher Preflight [{0}] {1}', inputs.npm_dist_tag, inputs.ref) || inputs.preflight_only && format('Plugin NPM Artifact Preflight [{0}] {1}', inputs.npm_dist_tag, inputs.ref) || format('Plugin NPM Release [{0}] {1}', inputs.npm_dist_tag, inputs.ref)) || format('Plugin NPM Release [default] {0}', github.sha) }}
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - ".github/workflows/plugin-npm-release.yml"
-      - ".github/actions/setup-node-env/**"
-      - "extensions/**"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - "packages/normalization-core/src/**"
-      - "packages/plugin-package-contract/src/**"
-      - "scripts/generate-npm-package-lock.mjs"
-      - "scripts/generate-npm-package-lock.mts"
-      - "scripts/lib/bounded-response.mjs"
-      - "scripts/lib/npm-publish-plan.mjs"
-      - "scripts/lib/npm-json-output.mts"
-      - "scripts/lib/release-version.mjs"
-      - "scripts/lib/plugin-npm-package-manifest.mjs"
-      - "scripts/lib/plugin-npm-package-manifest.mts"
-      - "scripts/lib/tsx-cli-shim.mjs"
-      - "scripts/lib/local-check-runtime.mts"
-      - "scripts/tsx.mjs"
-      - "scripts/lib/plugin-npm-release.ts"
-      - "scripts/lib/plugin-publication-candidates.ts"
-      - "scripts/lib/plugin-publication-collector.ts"
-      - "scripts/lib/plugin-publication-target.mjs"
-      - "scripts/lib/actions-artifact-archive.mjs"
-      - "scripts/openclaw-npm-extended-stable-release.mjs"
-      - "scripts/plugin-npm-publish.sh"
-      - "scripts/plugin-npm-prepared-release.mjs"
-      - "scripts/plugin-publication-artifact.mjs"
-      - "scripts/plugin-npm-bootstrap-approval.mjs"
-      - "scripts/lib/release-publish-gates.mts"
-      - "scripts/lib/record-shared.mjs"
-      - "scripts/release-tooling-identity.d.mts"
-      - "scripts/release-tooling-identity.mjs"
-      - "scripts/plugin-npm-release-check.ts"
-      - "scripts/plugin-npm-release-plan.ts"
-      - "scripts/verify-plugin-npm-published-runtime.mts"
-      - "src/plugins/package-entrypoints.ts"
-      - "src/utils/run-with-concurrency.ts"
   workflow_dispatch:
     inputs:
       publish_scope:

@@ -1,39 +1,6 @@
 name: Control UI Locale Refresh
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - ui/src/i18n/locales/en.ts
-      - ui/src/i18n/locales/*.ts
-      - ui/src/i18n/.i18n/*
-      - ui/src/i18n/lib/types.ts
-      - ui/src/i18n/lib/registry.ts
-      - ui/config/control-ui-locales.ts
-      - scripts/control-ui-i18n.ts
-      - scripts/control-ui-i18n-verify.ts
-      - scripts/lib/control-ui-i18n-catalog.ts
-      - scripts/lib/control-ui-i18n-catalog-values.ts
-      - ui/src/i18n/lib/config-hint-translation.ts
-      - ui/src/lib/fnv1a.ts
-      - src/config/schema*.ts
-      - src/config/zod-schema*.ts
-      - src/config/media-audio-field-metadata.ts
-      - src/config/talk-defaults.ts
-      - src/config/channel-config-keys.ts
-      - scripts/lib/control-ui-i18n-config.json
-      - scripts/lib/control-ui-i18n-config.ts
-      - scripts/lib/control-ui-i18n-raw-copy.ts
-      - scripts/lib/control-ui-i18n-sync-plan.ts
-      - .github/actions/create-generated-pr-tokens/action.yml
-      - .github/actions/publish-generated-pr/action.yml
-      - .github/workflows/control-ui-locale-refresh.yml
-  release:
-    types:
-      - published
-  schedule:
-    - cron: "23 4 * * *"
   workflow_dispatch:
     inputs:
       full_refresh:

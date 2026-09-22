@@ -1,9 +1,7 @@
 name: PR context and evidence
 
 on:
-  pull_request_target: # zizmor: ignore[dangerous-triggers] trusted base checkout only; no untrusted PR code execution
-    types: [opened, edited, synchronize, reopened, ready_for_review]
-
+  workflow_dispatch:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 

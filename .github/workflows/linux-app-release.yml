@@ -23,11 +23,6 @@ on:
         description: "Exact original core publication attempt"
         required: true
         type: string
-  workflow_run: # zizmor: ignore[dangerous-triggers] main-only release builder; exact successful request/main identity is validated before selected-tag execution, while signing and publication stay in fresh jobs
-    workflows: ["Linux App Release Request"]
-    branches: [main]
-    types: [completed]
-
 permissions: {}
 
 # Serial admission lets later requests reuse the first completed publication.
