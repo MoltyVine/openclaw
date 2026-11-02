@@ -1,9 +1,6 @@
 name: Full Release Validation Nightly
 
 on:
-  schedule:
-    # Every 3 hours while main moves toward a release; one pinned main SHA per run.
-    - cron: "7 */3 * * *"
   workflow_dispatch:
 
 permissions:

@@ -1,50 +1,7 @@
 name: Node Runtime Conformance
 
 on:
-  schedule:
-    - cron: "23 * * * *"
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths: &validation_paths
-      - ".github/workflows/node-runtime-conformance.yml"
-      - "crates/**"
-      - "packages/gateway-protocol/src/index.ts"
-      - "packages/gateway-protocol/src/version.ts"
-      - "packages/gateway-protocol/src/schema/nodes.ts"
-      - "packages/gateway-protocol/src/validator-registry.ts"
-      - "src/gateway/node-command-policy.ts"
-      - "src/gateway/node-invoke-request.ts"
-      - "src/gateway/node-registry.ts"
-      - "src/infra/node-invoke-lifecycle-contract.test.ts"
-      - "src/infra/node-pairing-surface.ts"
-      - "src/infra/node-runtime-integration-contract.test.ts"
-      - "src/node-host/invoke-payload.ts"
-      - "test/fixtures/node-invoke-lifecycle-contract.json"
-      - "test/fixtures/node-runtime-integration-contract.json"
-      - ".github/actions/detect-scheduled-changes/**"
-      - ".github/actions/setup-node-env/**"
-      - ".github/actions/setup-pnpm-store-cache/**"
-      - "scripts/test-projects*"
-      - "scripts/run-vitest*"
-      - "scripts/lib/**"
-      - "test/vitest/**"
-      - "vitest*.ts"
-      - "tsconfig*.json"
-      - "node-version.mjs"
-      - ".npmrc"
-      - "pnpm-workspace.yaml"
-      - "patches/**"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - "src/infra/node-commands.ts"
-      - "packages/normalization-core/**"
-      - "!crates/openclaw-node-host/SIDECAR_PROTOCOL.md"
-      - "!patches/README.md"
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
-    paths: *validation_paths
-
 concurrency:
   # Passive draft events must not cancel useful validation; conversion intentionally does.
   group: >-

@@ -1,9 +1,6 @@
 name: PostgreSQL Scheduled Qualification
 
 on:
-  schedule:
-    - cron: "17 7 * * *"
-    - cron: "43 6 * * 1"
   workflow_dispatch:
     inputs:
       versions:

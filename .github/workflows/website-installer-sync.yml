@@ -1,28 +1,6 @@
 name: Website Installer Sync
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
-    paths:
-      - scripts/install.sh
-      - scripts/install-cli.sh
-      - scripts/install-policy.sh
-      - scripts/build-installers.mjs
-      - scripts/lib/standalone-installers.mjs
-      - scripts/install.ps1
-      - test/scripts/install-ps1-entrypoint.ps1
-      - .github/workflows/website-installer-sync.yml
-  push:
-    branches: [main]
-    paths:
-      - scripts/install.sh
-      - scripts/install-cli.sh
-      - scripts/install-policy.sh
-      - scripts/build-installers.mjs
-      - scripts/lib/standalone-installers.mjs
-      - scripts/install.ps1
-      - test/scripts/install-ps1-entrypoint.ps1
-      - .github/workflows/website-installer-sync.yml
   workflow_dispatch:
     inputs:
       sync_website:

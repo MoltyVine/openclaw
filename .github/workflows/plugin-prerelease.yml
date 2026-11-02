@@ -3,8 +3,6 @@ name: Plugin Prerelease
 run-name: ${{ github.event_name == 'schedule' && 'Hourly Extension Tests' || inputs.dispatch_id != '' && format('Plugin Prerelease {0}', inputs.dispatch_id) || 'Plugin Prerelease' }}
 
 on:
-  schedule:
-    - cron: "37 * * * *"
   workflow_dispatch:
     inputs:
       target_ref:

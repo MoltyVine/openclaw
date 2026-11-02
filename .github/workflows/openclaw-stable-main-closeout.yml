@@ -1,20 +1,6 @@
 name: OpenClaw Stable Main Closeout
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "package.json"
-      - "CHANGELOG.md"
-      - "CHANGELOG/**"
-      - "appcast*.xml"
-      - ".github/workflows/openclaw-stable-main-closeout.yml"
-      - "scripts/verify-stable-main-closeout.mjs"
-      - "scripts/linux-updater-manifest.mjs"
-      - "scripts/lib/stable-*.mjs"
-      - "scripts/lib/release-*.mjs"
-      - "scripts/lib/release-*.mts"
-      - "scripts/lib/changelog*.mjs"
   workflow_dispatch:
     inputs:
       tag:

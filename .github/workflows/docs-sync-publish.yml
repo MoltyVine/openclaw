@@ -1,25 +1,6 @@
 name: Docs Sync Publish Repo
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - docs/**
-      - package.json
-      - scripts/docs-list.js
-      - scripts/docs-sync-publish.mjs
-      - scripts/check-docs-mdx.mjs
-      - scripts/check-docs-mdx.mts
-      - scripts/lib/arg-utils.runtime.mjs
-      - scripts/lib/numeric-options.mjs
-      - scripts/lib/docs-markdown.mjs
-      - scripts/lib/docs-redirects.mjs
-      - scripts/lib/tsx-cli-shim.mjs
-      - scripts/lib/local-check-runtime.mts
-      - .github/workflows/docs-sync-publish.yml
-      - "!docs/AGENTS.md"
-      - "!docs/.i18n/README.md"
   workflow_dispatch:
 
 permissions:

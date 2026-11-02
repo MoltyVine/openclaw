@@ -3,11 +3,7 @@ name: Linux App Release
 run-name: Linux App Release request=${{ github.event.workflow_run.id }} attempt=${{ github.event.workflow_run.run_attempt }}
 
 on:
-  workflow_run: # zizmor: ignore[dangerous-triggers] main-only release builder; exact successful request/main identity is validated before selected-tag execution, while signing and publication stay in fresh jobs
-    workflows: ["Linux App Release Request"]
-    branches: [main]
-    types: [completed]
-
+  workflow_dispatch:
 permissions: {}
 
 # Serial admission lets later requests reuse the first completed publication.
