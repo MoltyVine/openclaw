@@ -1,9 +1,6 @@
 name: Update Migration
 
 on:
-  schedule:
-    # Sunday 03:17 UTC avoids the daily cache warmers and top-of-hour bursts.
-    - cron: "17 3 * * 0"
   workflow_dispatch:
     inputs:
       workflow_ref:

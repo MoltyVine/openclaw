@@ -1,8 +1,6 @@
 name: Dated TODO sweep
 
 on:
-  schedule:
-    - cron: "23 6 * * 1"
   workflow_dispatch:
     inputs:
       dry_run:

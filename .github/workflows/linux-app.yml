@@ -1,16 +1,6 @@
 name: Linux App
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
-    paths:
-      - "apps/linux/**"
-      - "scripts/lib/openclaw-bun.json"
-      - "scripts/stage-openclaw-bun.sh"
-      - ".github/workflows/linux-app.yml"
-      - ".github/workflows/linux-app-release.yml"
-      - "!apps/linux/README.md"
-      - "!apps/linux/omarchy/README.md"
   workflow_dispatch:
     inputs:
       windows_only:

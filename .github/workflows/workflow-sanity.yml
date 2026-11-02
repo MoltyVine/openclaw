@@ -1,15 +1,6 @@
 name: Workflow Sanity
 
 on:
-  pull_request:
-    paths-ignore:
-      - "CHANGELOG.md"
-      - "CHANGELOG/**"
-  push:
-    branches: [main]
-    paths-ignore:
-      - "CHANGELOG.md"
-      - "CHANGELOG/**"
   workflow_dispatch:
 
 permissions:

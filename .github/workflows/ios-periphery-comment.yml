@@ -1,10 +1,7 @@
 name: Periphery Dead Code Comment
 
 on:
-  workflow_run: # zizmor: ignore[dangerous-triggers] trusted PR commenter; job gates repository, source event, workflow name, live open PR, and exact current head before reading artifacts or writing comments
-    workflows: ["iOS Periphery Dead Code", "macOS Periphery Dead Code"]
-    types: [completed]
-
+  workflow_dispatch:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 

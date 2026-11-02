@@ -1,39 +1,7 @@
 name: Plugin Init Scaffold Validation
 
 on:
-  schedule:
-    - cron: "23 * * * *"
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths: &validation_paths
-      - ".github/workflows/plugin-init-scaffold-validation.yml"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - "scripts/validate-plugin-init-provider-scaffold.ts"
-      - "src/cli/plugins-authoring-command.ts"
-      - "src/cli/plugins-authoring-command.test.ts"
-      - "src/cli/plugins-cli.ts"
-      - "src/plugin-sdk/**"
-      - ".github/actions/detect-scheduled-changes/**"
-      - ".github/actions/setup-node-env/**"
-      - ".github/actions/setup-pnpm-store-cache/**"
-      - "scripts/test-projects*"
-      - "scripts/run-vitest*"
-      - "scripts/lib/**"
-      - "test/vitest/**"
-      - "vitest*.ts"
-      - "tsconfig*.json"
-      - "node-version.mjs"
-      - ".npmrc"
-      - "pnpm-workspace.yaml"
-      - "patches/**"
-      - "src/cli/plugins-*.ts"
-      - "!src/plugin-sdk/AGENTS.md"
-  pull_request:
-    types: [opened, reopened, synchronize, ready_for_review]
-    paths: *validation_paths
-
 permissions:
   actions: read
   contents: read

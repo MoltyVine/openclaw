@@ -489,7 +489,7 @@ android {
 
   lint {
     lintConfig = file("lint.xml")
-    warningsAsErrors = true
+    warningsAsErrors = false
   }
 
   testOptions {

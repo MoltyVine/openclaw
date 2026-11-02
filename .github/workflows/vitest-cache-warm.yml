@@ -1,17 +1,7 @@
 name: Vitest Cache Warm
 
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - "**/*.md"
-      - "docs/**"
   workflow_dispatch:
-  repository_dispatch:
-    types: [vitest-cache-warm]
-  schedule:
-    - cron: "17 * * * *"
-
 # Match npm preflight and FRV only for full-build cache publication.
 env:
   RELEASE_BUILD_NODE_VERSION: "24.22.1"

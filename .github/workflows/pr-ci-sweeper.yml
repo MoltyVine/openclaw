@@ -5,8 +5,6 @@ name: PR CI Sweeper
 # lets reopen events trigger CI; GITHUB_TOKEN-authored events would not.
 
 on:
-  schedule:
-    - cron: "7 * * * *"
   workflow_dispatch:
     inputs:
       dry_run:

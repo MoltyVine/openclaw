@@ -3,11 +3,6 @@ name: iOS Store Release
 run-name: iOS ${{ github.event_name == 'schedule' && github.event.schedule == '0 11 * * 1' && 'Store release (weekly)' || (((github.event_name == 'schedule' && github.event.schedule == '0 7 * * *') || inputs.operation == 'testflight') && 'TestFlight distribution' || format('Store {0}', inputs.operation)) }}
 
 on:
-  schedule:
-    - cron: "0 7 * * *"
-      timezone: America/Los_Angeles
-    - cron: "0 11 * * 1"
-      timezone: America/Los_Angeles
   workflow_dispatch:
     inputs:
       operation:

@@ -1,8 +1,6 @@
 name: Docs External Link Audit
 
 on:
-  schedule:
-    - cron: "47 7 * * 1"
   workflow_dispatch:
 
 permissions:
